@@ -1,6 +1,7 @@
 #include "syscall.h"
 #include "traps.h"
 
+#yoo that int thing makes an interrupt call
 #define SYSCALL(name) \
   .globl name; \
   name: \
@@ -30,3 +31,9 @@ SYSCALL(sbrk)
 SYSCALL(sleep)
 SYSCALL(uptime)
 SYSCALL(halt)
+SYSCALL(date)
+SYSCALL(getuid)
+SYSCALL(getgid)
+SYSCALL(getppid)
+SYSCALL(setuid)
+SYSCALL(setgid)

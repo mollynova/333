@@ -25,6 +25,20 @@ int sleep(int);
 int uptime(void);
 int halt(void);
 
+// add date prototype to user.h file: P1
+#ifdef CS333_P1
+int date(struct rtcdate*);
+#endif
+
+// add prototypes to user.h file: P2
+#ifdef CS333_P2
+uint getuid(void);  // UID of current process
+uint getgid(void);  // GID of current process
+uint getppid(void); // process ID of parent process
+int setuid(uint);   // set UID
+int setgid(uint);   // set GID
+#endif
+
 // ulib.c
 int stat(char*, struct stat*);
 char* strcpy(char*, char*);

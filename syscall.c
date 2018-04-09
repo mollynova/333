@@ -55,7 +55,7 @@ int
 argptr(int n, char **pp, int size)
 {
   int i;
-  
+
   if(argint(n, &i) < 0)
     return -1;
   if((uint)i >= proc->sz || (uint)i+size > proc->sz)
@@ -99,7 +99,16 @@ extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
 extern int sys_halt(void);
-
+#ifdef CS333_P1
+extern int sys_date(void);
+#endif
+#ifdef CS333_P2
+extern uint sys_getuid(void);
+extern uint sys_getgid(void);
+extern uint sys_getppid(void);
+extern int sys_setuid(uint);
+extern int sys_setgid(uint);
+#endif
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -123,8 +132,45 @@ static int (*syscalls[])(void) = {
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 [SYS_halt]    sys_halt,
+#ifdef CS333_P1
+[SYS_date]    sys_date,
+#endif
+#ifdef CS333_P2
+[SYS_getuid]  sys_getuid,
+[SYS_getgid]  sys_getgid,
+[SYS_getppid] sys_getppid,
+[SYS_setuid]  sys_setuid,
+[SYS_setgid]  sys_setgid,
+#endif
 };
 
+#ifdef PRINT_SYSCALLS
+static char* syscallnames[] = {
+[SYS_fork]    "fork",
+[SYS_exit]    "exit",
+[SYS_wait]    "wait",
+[SYS_pipe]    "pipe",
+[SYS_read]    "read",
+[SYS_kill]    "kill",
+[SYS_exec]    "exec",
+[SYS_fstat]   "fstat",
+[SYS_chdir]   "chdir",
+[SYS_dup]     "dup",
+[SYS_getpid]  "getpid",
+[SYS_sbrk]    "sbrk",
+[SYS_sleep]   "sleep",
+[SYS_uptime]  "uptime",
+[SYS_open]    "open",
+[SYS_write]   "write",
+[SYS_mknod]   "mknod",
+[SYS_unlink]  "unlink",
+[SYS_link]    "link",
+[SYS_mkdir]   "mkdir",
+[SYS_close]   "close",
+[SYS_halt]    "halt",
+[SYS_date]    "date",
+};
+#endif
 // put data structure for printing out system call invocation information here
 
 void
@@ -135,6 +181,10 @@ syscall(void)
   num = proc->tf->eax;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     proc->tf->eax = syscalls[num]();
+    // names[num]
+  #ifdef PRINT_SYSCALLS
+    cprintf("%s -> %d\n", syscallnames[num], num);
+  #endif
 // some code goes here
   } else {
     cprintf("%d %s: unknown sys call %d\n",

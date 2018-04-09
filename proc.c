@@ -20,7 +20,6 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
-
 #ifdef CS333_P3P4
 static void initProcessLists(void);
 static void initFreeList(void);
@@ -78,6 +77,7 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  p->start_ticks = ticks;
   return p;
 }
 
@@ -495,6 +495,17 @@ static char *states[] = {
   [ZOMBIE]    "zombie"
 };
 
+void
+print_ticks(uint pticks)
+{
+    int secs = pticks/1000;
+    int tenths = (pticks/100)%10;
+    int hundredths = (pticks/10)%10;
+    int thousandths = (pticks % 10);
+
+    cprintf("%d.%d%d%d\t", secs, tenths, hundredths, thousandths);
+}
+
 //PAGEBREAK: 36
 // Print a process listing to console.  For debugging.
 // Runs when user types ^P on console.
@@ -507,6 +518,7 @@ procdump(void)
   char *state;
   uint pc[10];
 
+  cprintf("PID\tState\tName\tElapsed\tPCs\n");
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -514,7 +526,11 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
-    cprintf("%d %s %s", p->pid, state, p->name);
+
+    uint pticks = ticks - p->start_ticks;
+
+    cprintf("%d\t%s\t%s\t", p->pid, state, p->name);
+    print_ticks(pticks);
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)
@@ -523,7 +539,6 @@ procdump(void)
     cprintf("\n");
   }
 }
-
 
 #ifdef CS333_P3P4
 static int
