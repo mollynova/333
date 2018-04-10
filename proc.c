@@ -15,6 +15,8 @@ struct {
 static struct proc *initproc;
 
 int nextpid = 1;
+int nextuid = 1;
+int nextgid = 1;
 extern void forkret(void);
 extern void trapret(void);
 
@@ -57,8 +59,11 @@ found:
 #ifdef CS333_P2
   //p->uid = UID;
   //p->gid = GID;
-  p->uid = p->uid + 1;
-  p->gid = p->gid + 1;
+  //p->uid = p->uid + 1;
+  //p->gid = p->gid + 1;
+  p->uid = nextuid++;
+  p->gid = nextgid++;
+  //p->ppid = p->parent->pid;
 #endif
   release(&ptable.lock);
 
@@ -101,8 +106,11 @@ userinit(void)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
   p->sz = PGSIZE;
+#ifdef CS333_P2
   p->uid = UID;
   p->gid = GID;
+  //p->ppid = 1;
+#endif
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
@@ -161,6 +169,10 @@ fork(void)
 #ifdef CS333_P2
   np->uid = proc->uid;
   np->gid = proc->gid;
+//  np->ppid = proc->ppid;
+    //np->uid = 0;
+    //np->gid = 0;
+    //np->ppid = 0;
 #endif
   np->sz = proc->sz;
   np->parent = proc;

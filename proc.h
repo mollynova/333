@@ -55,6 +55,7 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 struct proc {
 #ifdef CS333_P2
   uint uid;
+//  uint ppid;
   uint gid;
 #endif
   uint start_ticks;            // counts ticks

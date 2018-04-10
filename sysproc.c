@@ -110,6 +110,7 @@ uint
 sys_getuid(void)
 {
   return proc->uid;
+  //return 0;
 }
 
 uint
@@ -129,7 +130,7 @@ sys_getppid(void)
 }
 
 int
-sys_setuid(uint UID)
+sys_setuid(uint Uid)
 {
   if(Uid < 0 || Uid > 32767)
     return -1;
@@ -138,7 +139,7 @@ sys_setuid(uint UID)
 }
 
 int
-sys_setgid(uint GID)
+sys_setgid(uint Gid)
 {
   if(Gid < 0 || Gid > 32767)
     return -1;

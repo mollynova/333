@@ -103,11 +103,11 @@ extern int sys_halt(void);
 extern int sys_date(void);
 #endif
 #ifdef CS333_P2
-extern uint sys_getuid(void);
-extern uint sys_getgid(void);
-extern uint sys_getppid(void);
-extern int sys_setuid(uint);
-extern int sys_setgid(uint);
+extern int sys_getuid(void);
+extern int sys_getgid(void);
+extern int sys_getppid(void);
+extern int sys_setuid(void);
+extern int sys_setgid(void);
 #endif
 
 static int (*syscalls[])(void) = {
