@@ -109,6 +109,7 @@ extern uint sys_getppid(void);
 extern int sys_setuid(uint);
 extern int sys_setgid(uint);
 #endif
+
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -169,6 +170,11 @@ static char* syscallnames[] = {
 [SYS_close]   "close",
 [SYS_halt]    "halt",
 [SYS_date]    "date",
+[SYS_getuid]  "getuid",
+[SYS_getgid]  "getgid",
+[SYS_getppid] "getppid",
+[SYS_setuid]  "setuid",
+[SYS_setgid]  "setgid",
 };
 #endif
 // put data structure for printing out system call invocation information here

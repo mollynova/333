@@ -104,3 +104,46 @@ sys_date(void)
   return 0;
 }
 #endif
+
+#ifdef CS333_P2
+uint
+sys_getuid(void)
+{
+  return proc->uid;
+}
+
+uint
+sys_getgid(void)
+{
+  return proc->gid;
+}
+
+uint
+sys_getppid(void)
+{
+  // if process is init, ppid == uid
+  if(proc->pid == 1)
+    return 1;
+  // otherwise return the pid of the parent
+  return proc->parent->pid;
+}
+
+int
+sys_setuid(uint UID)
+{
+  if(Uid < 0 || Uid > 32767)
+    return -1;
+  proc->uid = Uid;
+  return 0;
+}
+
+int
+sys_setgid(uint GID)
+{
+  if(Gid < 0 || Gid > 32767)
+    return -1;
+  proc->gid = Gid;
+  return 0;
+}
+
+#endif

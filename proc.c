@@ -54,6 +54,12 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+#ifdef CS333_P2
+  //p->uid = UID;
+  //p->gid = GID;
+  p->uid = p->uid + 1;
+  p->gid = p->gid + 1;
+#endif
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -95,6 +101,8 @@ userinit(void)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
   p->sz = PGSIZE;
+  p->uid = UID;
+  p->gid = GID;
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
@@ -150,6 +158,10 @@ fork(void)
     np->state = UNUSED;
     return -1;
   }
+#ifdef CS333_P2
+  np->uid = proc->uid;
+  np->gid = proc->gid;
+#endif
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
