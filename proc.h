@@ -55,8 +55,9 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 struct proc {
 #ifdef CS333_P2
   uint uid;
-//  uint ppid;
   uint gid;
+  uint cpu_ticks_total;
+  uint cpu_ticks_in;
 #endif
   uint start_ticks;            // counts ticks
   uint sz;                     // Size of process memory (bytes)

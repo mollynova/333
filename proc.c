@@ -63,6 +63,8 @@ found:
   //p->gid = p->gid + 1;
   p->uid = nextuid++;
   p->gid = nextgid++;
+  p->cpu_ticks_total = 0;
+  p->cpu_ticks_in = 0;
   //p->ppid = p->parent->pid;
 #endif
   release(&ptable.lock);
@@ -107,6 +109,8 @@ userinit(void)
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
   p->sz = PGSIZE;
 #ifdef CS333_P2
+  p->cpu_ticks_total = 0;
+  p->cpu_ticks_in = 0;
   p->uid = UID;
   p->gid = GID;
   //p->ppid = 1;
@@ -336,6 +340,9 @@ scheduler(void)
       idle = 0;  // not idle this timeslice
       proc = p;
       switchuvm(p);
+#ifdef CS333_P2
+      p->cpu_ticks_in = ticks;
+#endif
       p->state = RUNNING;
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
@@ -377,6 +384,11 @@ sched(void)
   if(readeflags()&FL_IF)
     panic("sched interruptible");
   intena = cpu->intena;
+
+#ifdef CS333_P2
+      proc->cpu_ticks_total += ticks - proc->cpu_ticks_in;
+#endif
+
   swtch(&proc->context, cpu->scheduler);
   cpu->intena = intena;
 }

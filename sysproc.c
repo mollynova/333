@@ -130,20 +130,27 @@ sys_getppid(void)
 }
 
 int
-sys_setuid(uint Uid)
+sys_setuid(void)
 {
-  if(Uid < 0 || Uid > 32767)
+  int n;
+  if(argint(0, &n) < 0)
     return -1;
-  proc->uid = Uid;
+  if(n < 0 || n > 32767)
+    return -1;
+
+  proc->uid = n;
   return 0;
 }
 
 int
-sys_setgid(uint Gid)
+sys_setgid(void)
 {
-  if(Gid < 0 || Gid > 32767)
+  int n;
+  if(argint(0, &n) < 0)
     return -1;
-  proc->gid = Gid;
+  if(n < 0 || n > 32767)
+    return -1;
+  proc->gid = n;
   return 0;
 }
 
