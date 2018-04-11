@@ -531,6 +531,7 @@ static char *states[] = {
   [ZOMBIE]    "zombie"
 };
 
+#ifdef CS333_P1
 void
 print_ticks(uint pticks)
 {
@@ -575,6 +576,73 @@ procdump(void)
     cprintf("\n");
   }
 }
+#endif
+
+#ifdef CS333_P2
+void
+print_ticks(uint pticks)
+{
+    int secs = pticks/1000;
+    int tenths = (pticks/100)%10;
+    int hundredths = (pticks/10)%10;
+    int thousandths = (pticks % 10);
+
+    cprintf("%d.%d%d%d\t", secs, tenths, hundredths, thousandths);
+}
+
+void
+print_cpu(uint total)
+{
+  int secs = total/1000;
+  int tenths = (total/100)%10;
+  int hundredths = (total/10)%10;
+  int thousandths = (total % 10);
+
+  cprintf("%d.%d%d%d\t", secs, tenths, hundredths, thousandths);
+}
+
+//PAGEBREAK: 36
+// Print a process listing to console.  For debugging.
+// Runs when user types ^P on console.
+// No lock to avoid wedging a stuck machine further.
+void
+procdump(void)
+{
+  int i;
+  struct proc *p;
+  char *state;
+  uint pc[10];
+
+  cprintf("PID\tName\tUID\tGID\tPPID\tElapsed\tCPU\tState\tSize\tPCs\n");
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == UNUSED)
+      continue;
+    if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+      state = states[p->state];
+    else
+      state = "???";
+
+    uint pticks = ticks - p->start_ticks;
+
+    // start printing ^p data
+    cprintf("%d\t%s\t%d\t%d\t%d\t", p->pid, p->name, p->uid, p->gid, p->parent->pid);
+    // print 'elapsed'
+    print_ticks(pticks);
+    // print 'cpu'
+    print_cpu(p->cpu_ticks_total);
+    // continue printing ^p data
+    cprintf("%s\t%d\t", state, p->sz);
+
+    // print PCs
+    if(p->state == SLEEPING){
+      getcallerpcs((uint*)p->context->ebp+2, pc);
+      for(i=0; i<10 && pc[i] != 0; i++)
+        cprintf(" %p", pc[i]);
+    }
+    cprintf("\n");
+  }
+}
+#endif
 
 #ifdef CS333_P3P4
 static int
