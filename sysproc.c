@@ -154,4 +154,18 @@ sys_setgid(void)
   return 0;
 }
 
+int
+sys_getprocs(void)
+{
+  int n;
+  if(artint(0, &n) < 0)
+    return -1;
+  struct uproc *procs;
+  if(argptr(1, (void*)&procs, sizeof(struct uproc)) < 0)
+    return -1;
+
+  // call function in proc.h, pass this shit to it
+  // return the number of structs you actually put in the uprocs array
+  // cast it to a uint yo
+}
 #endif

@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "uproc.h"
 
 struct {
   struct spinlock lock;
@@ -22,6 +23,10 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
+#ifdef CS333_P2
+static int setProcs(uint max, struct uproc * procs);
+#endif
+
 #ifdef CS333_P3P4
 static void initProcessLists(void);
 static void initFreeList(void);
@@ -34,6 +39,14 @@ pinit(void)
 {
   initlock(&ptable.lock, "ptable");
 }
+
+#ifdef CS333_P2
+static int
+setProcs(uint max, struct uproc * procs)
+{
+
+}
+#endif
 
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
@@ -531,54 +544,6 @@ static char *states[] = {
   [ZOMBIE]    "zombie"
 };
 
-#ifdef CS333_P1
-void
-print_ticks(uint pticks)
-{
-    int secs = pticks/1000;
-    int tenths = (pticks/100)%10;
-    int hundredths = (pticks/10)%10;
-    int thousandths = (pticks % 10);
-
-    cprintf("%d.%d%d%d\t", secs, tenths, hundredths, thousandths);
-}
-
-//PAGEBREAK: 36
-// Print a process listing to console.  For debugging.
-// Runs when user types ^P on console.
-// No lock to avoid wedging a stuck machine further.
-void
-procdump(void)
-{
-  int i;
-  struct proc *p;
-  char *state;
-  uint pc[10];
-
-  cprintf("PID\tState\tName\tElapsed\tPCs\n");
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state == UNUSED)
-      continue;
-    if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
-      state = states[p->state];
-    else
-      state = "???";
-
-    uint pticks = ticks - p->start_ticks;
-
-    cprintf("%d\t%s\t%s\t", p->pid, state, p->name);
-    print_ticks(pticks);
-    if(p->state == SLEEPING){
-      getcallerpcs((uint*)p->context->ebp+2, pc);
-      for(i=0; i<10 && pc[i] != 0; i++)
-        cprintf(" %p", pc[i]);
-    }
-    cprintf("\n");
-  }
-}
-#endif
-
-#ifdef CS333_P2
 void
 print_ticks(uint pticks)
 {
@@ -613,7 +578,8 @@ procdump(void)
   char *state;
   uint pc[10];
 
-  cprintf("PID\tName\tUID\tGID\tPPID\tElapsed\tCPU\tState\tSize\tPCs\n");
+  #ifdef CS333_P1_NOT_NOW
+  cprintf("PID\tState\tName\tElapsed\tPCs\n");
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -624,8 +590,53 @@ procdump(void)
 
     uint pticks = ticks - p->start_ticks;
 
+    cprintf("%d\t%s\t%s\t", p->pid, state, p->name);
+    print_ticks(pticks);
+    if(p->state == SLEEPING){
+      getcallerpcs((uint*)p->context->ebp+2, pc);
+      for(i=0; i<10 && pc[i] != 0; i++)
+        cprintf(" %p", pc[i]);
+    }
+    cprintf("\n");
+  }
+  #endif
+  #ifdef CS333_P2
+  cprintf("\nPID\tName\tUID\tGID\tPPID\tElapsed\tCPU\tState\tSize\tPCs\n");
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == UNUSED)
+      continue;
+    if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+      state = states[p->state];
+    else
+      state = "???";
+
+    uint pticks = ticks - p->start_ticks;
+/*    cprintf("\nTesting... PID is: ");
+    cprintf("%d", p->pid);
+    cprintf("\nTesting... Name is: ");
+    cprintf("%s", p->name);
+    cprintf("\nTesting... UID is: ");
+    cprintf("%d", p->uid);
+    cprintf("\nTesting... GID is: ");
+    cprintf("%d", p->gid);
+    cprintf("\nTesting... PPID is: ");
+    if(p->pid == 1)
+      cprintf("1");
+    else
+      cprintf("%d", p->parent->pid);
+    cprintf("\nTesting... CPU is: ");
+    print_cpu(p->cpu_ticks_total);
+    cprintf("\nTesting... State is: ");
+    cprintf("%s", state);
+    cprintf("\nTesting... Size is: ");
+    cprintf("%d", p->sz);
+*/
     // start printing ^p data
-    cprintf("%d\t%s\t%d\t%d\t%d\t", p->pid, p->name, p->uid, p->gid, p->parent->pid);
+    cprintf("%d\t%s\t%d\t%d\t", p->pid, p->name, p->uid, p->gid);
+    if(p->pid == 1)
+      cprintf("1\t");
+    else
+      cprintf("%d\t", p->parent->pid);
     // print 'elapsed'
     print_ticks(pticks);
     // print 'cpu'
@@ -641,8 +652,8 @@ procdump(void)
     }
     cprintf("\n");
   }
+  #endif
 }
-#endif
 
 #ifdef CS333_P3P4
 static int
