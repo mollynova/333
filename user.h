@@ -1,5 +1,8 @@
 struct stat;
 struct rtcdate;
+#ifdef CS333_P2
+struct uproc;
+#endif
 
 // system calls
 int fork(void);
@@ -37,7 +40,7 @@ uint getgid(void);  // GID of current process
 uint getppid(void); // process ID of parent process
 int setuid(uint);   // set UID
 int setgid(uint);   // set GID
-int getprocs(uint max, struct uproc* table);
+int getprocs(uint, struct uproc*); // call a function to load ptable into uproc array
 #endif
 
 // ulib.c

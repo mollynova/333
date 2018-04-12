@@ -6,7 +6,9 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#ifdef CS333_P2
 #include "uproc.h"
+#endif
 
 struct {
   struct spinlock lock;
@@ -24,7 +26,7 @@ extern void trapret(void);
 static void wakeup1(void *chan);
 
 #ifdef CS333_P2
-static int setProcs(uint max, struct uproc * procs);
+int setProcs(uint max, struct uproc * table);
 #endif
 
 #ifdef CS333_P3P4
@@ -39,14 +41,6 @@ pinit(void)
 {
   initlock(&ptable.lock, "ptable");
 }
-
-#ifdef CS333_P2
-static int
-setProcs(uint max, struct uproc * procs)
-{
-
-}
-#endif
 
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
@@ -611,26 +605,7 @@ procdump(void)
       state = "???";
 
     uint pticks = ticks - p->start_ticks;
-/*    cprintf("\nTesting... PID is: ");
-    cprintf("%d", p->pid);
-    cprintf("\nTesting... Name is: ");
-    cprintf("%s", p->name);
-    cprintf("\nTesting... UID is: ");
-    cprintf("%d", p->uid);
-    cprintf("\nTesting... GID is: ");
-    cprintf("%d", p->gid);
-    cprintf("\nTesting... PPID is: ");
-    if(p->pid == 1)
-      cprintf("1");
-    else
-      cprintf("%d", p->parent->pid);
-    cprintf("\nTesting... CPU is: ");
-    print_cpu(p->cpu_ticks_total);
-    cprintf("\nTesting... State is: ");
-    cprintf("%s", state);
-    cprintf("\nTesting... Size is: ");
-    cprintf("%d", p->sz);
-*/
+
     // start printing ^p data
     cprintf("%d\t%s\t%d\t%d\t", p->pid, p->name, p->uid, p->gid);
     if(p->pid == 1)
@@ -721,7 +696,7 @@ initProcessLists(void) {
   ptable.pLists.readyTail = 0;
   ptable.pLists.free = 0;
   ptable.pLists.freeTail = 0;
-  ptable.pLists.sleep = 0;
+  ptable.pLists.sleep = 0;name, STRMAX);
   ptable.pLists.sleepTail = 0;
   ptable.pLists.zombie = 0;
   ptable.pLists.zombieTail = 0;
@@ -743,5 +718,51 @@ initFreeList(void) {
     p->state = UNUSED;
     stateListAdd(&ptable.pLists.free, &ptable.pLists.freeTail, p);
   }
+}
+#endif
+#ifdef CS333_P2
+int
+setProcs(uint max, struct uproc * table)
+{
+ // char* state;
+  struct proc *p;
+  int i = 0;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == UNUSED)
+      continue;
+    /*if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+      state = states[p->state];
+    else
+      state = "???";
+*/
+    if(2 <= p->state && p->state <= 4){
+      if(i == max) continue;
+      table[i].pid = p->pid;
+      table[i].uid = p->uid;
+      table[i].gid = p->gid;
+
+      if(p->pid == 1)
+         table[i].ppid = 1;
+      else
+         table[i].ppid = p->parent->pid;
+
+      table[i].elapsed_ticks = ticks - p->start_ticks;
+      table[i].size = p->sz;
+      table[i].CPU_total_ticks = p->cpu_ticks_total;
+
+      strncpy(table[i].state, states[p->state], STRMAX);
+      strncpy(table[i].name, p->name, STRMAX);
+
+      ++i;
+    } else {
+      continue;
+    }
+  }
+  return i;
+
+  // max is the size of the array procs
+  // go through ptables and copy everything
+  // return the number of structs you actually copied
+  // use strncpy with 3 args where n is STRMAX from uprocs.h
 }
 #endif

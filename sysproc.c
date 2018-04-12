@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "uproc.h"
 
 int
 sys_fork(void)
@@ -158,11 +159,13 @@ int
 sys_getprocs(void)
 {
   int n;
-  if(artint(0, &n) < 0)
+  if(argint(0, &n) < 0)
     return -1;
   struct uproc *procs;
   if(argptr(1, (void*)&procs, sizeof(struct uproc)) < 0)
     return -1;
+
+  return setProcs(n, procs);
 
   // call function in proc.h, pass this shit to it
   // return the number of structs you actually put in the uprocs array

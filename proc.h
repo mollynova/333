@@ -80,3 +80,7 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+#ifdef CS333_P2
+struct uproc;
+int setProcs(uint max, struct uproc * procs);
+#endif
