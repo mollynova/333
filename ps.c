@@ -50,6 +50,7 @@ main(void)
     print_cpu(table[i].CPU_total_ticks);
     printf(1, "%s\t%d\n", table[i].state, Size);
   }
+  free(table);
   exit();
 }
 #endif
