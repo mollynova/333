@@ -56,10 +56,13 @@ int main(void)
 {
   printf(1, "Testing ps for MAX: 1\n");
   testps(1);
+  sleep(5 * TPS);  // now type control-p
   printf(1, "Testing ps for MAX: 16\n");
   testps(16);
+  sleep(5 * TPS);  // now type control-p
   printf(1, "Testing ps for MAX: 64\n");
   testps(64);
+  sleep(5 * TPS);  // now type control-p
   printf(1, "Testing ps for MAX: 72\n");
   testps(72);
   exit();
