@@ -91,4 +91,5 @@ p5-test.h
 testsetuid.c
 testSched.c
 tests.c
-
+p2testsuite.c
+testuidgid.c

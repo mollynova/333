@@ -167,7 +167,7 @@ sys_getprocs(void)
 
   return setProcs(n, procs);
 
-  // call function in proc.h, pass this shit to it
+  // call function in proc.h, pass this to it
   // return the number of structs you actually put in the uprocs array
   // cast it to a uint yo
 }

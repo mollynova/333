@@ -18,7 +18,7 @@ main(int argc, char **argv)
 
   if(childid == 0){
       exec(argv[1], (argv + 1) );
-      printf(1, "Whoopsie, cookie, you did a boo boo");
+      printf(1, "Error: Invalid argument\n");
     } else {
     //wait(childid);
     wait();

@@ -26,18 +26,58 @@ print_cpu(uint total)
   printf(1, "%d.%d%d%d\t", secs, tenths, hundredths, thousandths);
 }
 
+#ifdef _TESTPS
+void
+testps(int max){
+  printf(1, "PID\tName\tUID\tGID\tPPID\tElapsed\tCPU\tState\tSize\n");
+  struct uproc* table  = (struct uproc*)malloc(max * sizeof(struct uproc));
+  int ret = getprocs(max, table);
+  if(ret < 0) {
+    printf(2,"Error: ps call failed. %s at line %d\n",
+      __FILE__, __LINE__);
+      exit();
+  }
+  for(int i = 0; i < ret; ++i){
+    uint Uid = table[i].uid;
+    uint Pid = table[i].pid;
+    uint Gid = table[i].gid;
+    uint Ppid = table[i].ppid;
+    uint Elapsed_ticks = table[i].elapsed_ticks;
+    uint Size = table[i].size;
+    printf(1, "%d\t%s\t%d\t%d\t%d\t", Pid, table[i].name, Uid, Gid, Ppid);
+    print_ticks(Elapsed_ticks);
+    print_cpu(table[i].CPU_total_ticks);
+    printf(1, "%s\t%d\n", table[i].state, Size);
+  }
+  free(table);
+}
+
+int main(void)
+{
+  printf(1, "Testing ps for MAX: 1\n");
+  testps(1);
+  printf(1, "Testing ps for MAX: 16\n");
+  testps(16);
+  printf(1, "Testing ps for MAX: 64\n");
+  testps(64);
+  printf(1, "Testing ps for MAX: 72\n");
+  testps(72);
+  exit();
+}
+#else
+
 int
 main(void)
 {
-  printf(1, "PID\tName\tUID\tGID\tPPID\tElapsed\tCPU\tState\tSize\n");
 
+  printf(1, "PID\tName\tUID\tGID\tPPID\tElapsed\tCPU\tState\tSize\n");
   struct uproc* table  = (struct uproc*)malloc(MAX * sizeof(struct uproc));
   int ret = getprocs(MAX, table);
-  /*if(ret) {
-    printf(2,"Error: date call failed. %s at line %d\n",
+  if(ret < 0) {
+    printf(2,"Error: ps call failed. %s at line %d\n",
       __FILE__, __LINE__);
       exit();
-  }*/
+  }
   for(int i = 0; i < ret; ++i){
     uint Uid = table[i].uid;
     uint Pid = table[i].pid;
@@ -53,4 +93,5 @@ main(void)
   free(table);
   exit();
 }
+#endif
 #endif

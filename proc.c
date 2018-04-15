@@ -18,8 +18,10 @@ struct {
 static struct proc *initproc;
 
 int nextpid = 1;
+#ifdef CS333_P2
 int nextuid = 1;
 int nextgid = 1;
+#endif
 extern void forkret(void);
 extern void trapret(void);
 
@@ -66,10 +68,8 @@ found:
 #ifdef CS333_P2
   //p->uid = UID;
   //p->gid = GID;
-  //p->uid = p->uid + 1;
-  //p->gid = p->gid + 1;
-  p->uid = nextuid++;
-  p->gid = nextgid++;
+  p->uid = UID;
+  p->gid = GID;
   p->cpu_ticks_total = 0;
   p->cpu_ticks_in = 0;
   //p->ppid = p->parent->pid;
@@ -727,6 +727,7 @@ setProcs(uint max, struct uproc * table)
  // char* state;
   struct proc *p;
   int i = 0;
+  acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -758,11 +759,7 @@ setProcs(uint max, struct uproc * table)
       continue;
     }
   }
+  release(&ptable.lock);
   return i;
-
-  // max is the size of the array procs
-  // go through ptables and copy everything
-  // return the number of structs you actually copied
-  // use strncpy with 3 args where n is STRMAX from uprocs.h
 }
 #endif
