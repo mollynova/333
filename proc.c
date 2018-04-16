@@ -529,6 +529,7 @@ kill(int pid)
 }
 #endif
 
+#ifdef CS333_P2
 static char *states[] = {
   [UNUSED]    "unused",
   [EMBRYO]    "embryo",
@@ -559,7 +560,7 @@ print_cpu(uint total)
 
   cprintf("%d.%d%d%d\t", secs, tenths, hundredths, thousandths);
 }
-
+#endif
 //PAGEBREAK: 36
 // Print a process listing to console.  For debugging.
 // Runs when user types ^P on console.
@@ -567,12 +568,11 @@ print_cpu(uint total)
 void
 procdump(void)
 {
+  #ifdef CS333_P1_NOT_NOW
   int i;
   struct proc *p;
   char *state;
   uint pc[10];
-
-  #ifdef CS333_P1_NOT_NOW
   cprintf("PID\tState\tName\tElapsed\tPCs\n");
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
@@ -595,6 +595,10 @@ procdump(void)
   }
   #endif
   #ifdef CS333_P2
+  int i;
+  struct proc *p;
+  char *state;
+  uint pc[10];
   cprintf("\nPID\tName\tUID\tGID\tPPID\tElapsed\tCPU\tState\tSize\tPCs\n");
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
