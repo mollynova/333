@@ -10,9 +10,29 @@
 #include "uproc.h"
 #endif
 
+#ifdef CS333_P3P4
+struct StateLists {
+  struct proc* ready;
+  struct proc* readyTail;
+  struct proc* free;
+  struct proc* freeTail;
+  struct proc* sleep;
+  struct proc* sleepTail;
+  struct proc* zombie;
+  struct proc* zombieTail;
+  struct proc* running;
+  struct proc* runningTail;
+  struct proc* embryo;
+  struct proc* embryoTail;
+};
+#endif
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
+#ifdef CS333_P3P4
+  struct StateLists pLists;
+#endif
 } ptable;
 
 static struct proc *initproc;
@@ -54,28 +74,50 @@ allocproc(void)
 {
   struct proc *p;
   char *sp;
+#ifdef CS333_P3P4
+  acquire(&ptable.lock);
+  // Search free list for unused process
+  for(p = ptable.pLists.free; p != 0; p = p->next){
+    if(p->state == UNUSED)
+      // remove process from free list
+      if(stateListRemove(&pTable.plists.free, &ptable.pLists.freeTail, p) < 0){
+        release(&ptable.lock);
+        panic("Could not remove process from FREE list");
+      }
+      // assert that process state is indeed 'unused' after its been removed from list
+      assertState(p, UNUSED);
+      goto Found;
+  release(&ptable.lock);
+  return 0;
+Found:
 
+  p->state = EMBRYO;
+  // Add to EMBRYO list
+  if(stateListAdd(&ptable.pLists.embryo, &ptable.pLists.embryoTail, p) < 0){
+    release(&ptable.lock);
+    panic("Could not add process to EMBRYO list");
+  }
+  // assert that p's state is indeed embryo, else panic
+  assertState(p, EMBRYO);
+#else
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == UNUSED)
       goto found;
   release(&ptable.lock);
   return 0;
-
 found:
+
   p->state = EMBRYO;
+#endif
   p->pid = nextpid++;
 #ifdef CS333_P2
-  //p->uid = UID;
-  //p->gid = GID;
   p->uid = UID;
   p->gid = GID;
   p->cpu_ticks_total = 0;
   p->cpu_ticks_in = 0;
-  //p->ppid = p->parent->pid;
 #endif
   release(&ptable.lock);
-
   // Allocate kernel stack.
   if((p->kstack = kalloc()) == 0){
     p->state = UNUSED;
@@ -106,6 +148,11 @@ found:
 void
 userinit(void)
 {
+#ifdef CS333_P3P4
+  initProcessLists();
+  initFreeList();
+#endif
+
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
@@ -120,7 +167,6 @@ userinit(void)
   p->cpu_ticks_in = 0;
   p->uid = UID;
   p->gid = GID;
-  //p->ppid = 1;
 #endif
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
@@ -134,7 +180,29 @@ userinit(void)
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
+#ifdef CS333_P3P4
+  // attempt to remove process from embryo list
+  acquire(&ptable.lock);
+  if(stateListRemove(&ptable.pLists.embryo, &ptable.pLists.embryoTail, p) < 0){
+    // if process isn't in embryo list, release lock and panic
+    release(&ptable.lock);
+    panic("Could not remove process from EMBRYO list");
+  }
+  // assert that process's state is EMBRYO
+  assertState(p, EMBRYO);
+#endif
+  // change process's state to RUNNABLE
   p->state = RUNNABLE;
+
+#ifdef CS333_P3P4
+  // add process to ready list- its the first process so we can just point ready
+  // to it instead of using the 'add' function. its FIFO so we point tail to it too
+  ptable.pLists.ready = p;
+  ptable.pLists.ready.next = 0;
+  ptable.pLists.readyTail = p;
+  // assert that its state is RUNNABLE
+  assertState(p, RUNNABLE);
+#endif
 }
 
 // Grow current process's memory by n bytes.
@@ -180,10 +248,6 @@ fork(void)
 #ifdef CS333_P2
   np->uid = proc->uid;
   np->gid = proc->gid;
-//  np->ppid = proc->ppid;
-    //np->uid = 0;
-    //np->gid = 0;
-    //np->ppid = 0;
 #endif
   np->sz = proc->sz;
   np->parent = proc;
@@ -202,10 +266,33 @@ fork(void)
   pid = np->pid;
 
   // lock to force the compiler to emit the np->state write last.
+#ifdef CS333_P3P4
+  acquire(&ptable.lock);
+  // attempt to remove np from EMBRYO list
+  if(stateListRemove(&ptable.pLists.embryo, &ptable.pLists.embryoTail, np) < 0){
+    // if process isnt in EMBRYO list, release lock and panic
+    release(&ptable.lock);
+    panic("fork(): couldn't remove process from EMBRYO list");
+  }
+  // assert that np's state is EMBRYO
+  assertState(np, EMBRYO);
+  // change np's state to RUNNABLE
+  np->state = RUNNABLE;
+  // add np to 'ready' list
+  if(stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, np) < 0){
+    // if failed to add process to 'ready' list, release lock and panic
+    release(&ptable.lock);
+    panic("fork(): couldn't add process to READY list");
+  }
+  // assert that np's state is RUNNABLE
+  assertState(np, RUNNABLE);
+  release(&ptable.lock);
+#else
+  // standard state transition
   acquire(&ptable.lock);
   np->state = RUNNABLE;
   release(&ptable.lock);
-
+#endif
   return pid;
 }
 
@@ -700,7 +787,7 @@ initProcessLists(void) {
   ptable.pLists.readyTail = 0;
   ptable.pLists.free = 0;
   ptable.pLists.freeTail = 0;
-  ptable.pLists.sleep = 0;name, STRMAX);
+  ptable.pLists.sleep = 0;
   ptable.pLists.sleepTail = 0;
   ptable.pLists.zombie = 0;
   ptable.pLists.zombieTail = 0;
@@ -765,5 +852,16 @@ setProcs(uint max, struct uproc * table)
   }
   release(&ptable.lock);
   return i;
+}
+#endif
+
+#ifdef CS333_P3P4
+static void
+assertState(struct proc* p, enum procstate state)
+{
+  if(p->state != state){
+    cprintf("\nERROR: Process intended state is: %s, Actual state is %s\n", state, p->state);
+    panic("Goodbye");
+  }
 }
 #endif

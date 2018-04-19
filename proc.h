@@ -59,6 +59,9 @@ struct proc {
   uint cpu_ticks_total;
   uint cpu_ticks_in;
 #endif
+#ifdef CS333_P3P4
+  struct proc *next;           // pointer to next item in each list of procs
+#endif
   uint start_ticks;            // counts ticks
   uint sz;                     // Size of process memory (bytes)
   pde_t* pgdir;                // Page table
