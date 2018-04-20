@@ -56,6 +56,8 @@ static void initProcessLists(void);
 static void initFreeList(void);
 static int stateListAdd(struct proc** head, struct proc** tail, struct proc* p);
 static int stateListRemove(struct proc** head, struct proc** tail, struct proc* p);
+static void assertState(struct proc* p, enum procstate state);
+static void assertSuccess(struct proc* p, enum procstate state);
 #endif
 
 void
@@ -80,15 +82,17 @@ allocproc(void)
   for(p = ptable.pLists.free; p != 0; p = p->next){
     if(p->state == UNUSED)
       // remove process from free list
-      if(stateListRemove(&pTable.plists.free, &ptable.pLists.freeTail, p) < 0){
+      if(stateListRemove(&ptable.pLists.free, &ptable.pLists.freeTail, p) < 0){
         release(&ptable.lock);
         panic("Could not remove process from FREE list");
       }
       // assert that process state is indeed 'unused' after its been removed from list
       assertState(p, UNUSED);
+      assertSuccess(p, UNUSED);
       goto Found;
   release(&ptable.lock);
   return 0;
+  }
 Found:
 
   p->state = EMBRYO;
@@ -99,6 +103,7 @@ Found:
   }
   // assert that p's state is indeed embryo, else panic
   assertState(p, EMBRYO);
+  assertSuccess(p, EMBRYO);
 #else
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -149,8 +154,10 @@ void
 userinit(void)
 {
 #ifdef CS333_P3P4
+  acquire(&ptable.lock);
   initProcessLists();
   initFreeList();
+  release(&ptable.lock);
 #endif
 
   struct proc *p;
@@ -158,6 +165,7 @@ userinit(void)
 
   p = allocproc();
   initproc = p;
+
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
@@ -190,6 +198,7 @@ userinit(void)
   }
   // assert that process's state is EMBRYO
   assertState(p, EMBRYO);
+  assertSuccess(p, EMBRYO);
 #endif
   // change process's state to RUNNABLE
   p->state = RUNNABLE;
@@ -198,10 +207,11 @@ userinit(void)
   // add process to ready list- its the first process so we can just point ready
   // to it instead of using the 'add' function. its FIFO so we point tail to it too
   ptable.pLists.ready = p;
-  ptable.pLists.ready.next = 0;
+  p->next = 0;
   ptable.pLists.readyTail = p;
   // assert that its state is RUNNABLE
   assertState(p, RUNNABLE);
+  assertSuccess(p, RUNNABLE);
 #endif
 }
 
@@ -276,6 +286,7 @@ fork(void)
   }
   // assert that np's state is EMBRYO
   assertState(np, EMBRYO);
+  assertSuccess(np, EMBRYO);
   // change np's state to RUNNABLE
   np->state = RUNNABLE;
   // add np to 'ready' list
@@ -286,6 +297,7 @@ fork(void)
   }
   // assert that np's state is RUNNABLE
   assertState(np, RUNNABLE);
+  assertSuccess(np, RUNNABLE);
   release(&ptable.lock);
 #else
   // standard state transition
@@ -436,8 +448,9 @@ scheduler(void)
       switchuvm(p);
 #ifdef CS333_P2
       p->cpu_ticks_in = ticks;
-#endif
       p->state = RUNNING;
+#endif
+
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
 
@@ -458,7 +471,66 @@ scheduler(void)
 void
 scheduler(void)
 {
+  struct proc *p;
+  int idle;  // for checking if processor is idle
 
+  for(;;){
+    // Enable interrupts on this processor.
+    sti();
+
+    idle = 1;  // assume idle unless we schedule a process
+    // Loop over process table looking for process to run.
+    acquire(&ptable.lock);
+    // attempt to remove process from ready list, panic if process is not in list
+    for(p = ptable.pLists.ready; p != 0; p = p->next){
+      if(!p)
+        continue;
+      assertState(p, RUNNABLE);
+      assertSuccess(p, RUNNABLE);
+      idle = 0;
+      proc = p;
+      switchuvm(p);
+      p->cpu_ticks_in = ticks;
+      p->state = RUNNING;
+        // do stuff
+      /*if(stateListRemove(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
+      release(&ptable.lock);
+      panic("scheduler(): could not remove process from ready list");
+    }
+    // assert p is RUNNABLE, panic if not
+    assertState(p, RUNNABLE);
+    assertSuccess(p, RUNNABLE);
+    // switch to chosen process. it is the process's job to release ptable.lock
+    // and then reacquire it before jumping back to us
+    idle = 0;
+    proc = p;
+    switchuvm(p);
+    p->cpu_ticks_in = ticks;
+    // switch p->state to RUNNING
+    p->state = RUNNING;
+    */
+      if(stateListAdd(&ptable.pLists.running, &ptable.pLists.runningTail, p) < 0){
+        release(&ptable.lock);
+        panic("scheduler(): could not add process to running list");
+      }
+    // assert p is now RUNNING, panic if not
+      assertState(p, RUNNING);
+      assertSuccess(p, RUNNING);
+      swtch(&cpu->scheduler, proc->context);
+      switchkvm();
+
+    // Process is done running for now.
+    // It should have changed its p->state before coming back.
+      proc = 0;
+    }
+    release(&ptable.lock);
+  // if idle, wait for next interrupt
+    cprintf("\nOk we finished running the process\n");
+    if (idle) {
+      sti();
+      hlt();
+    }
+  }
 }
 #endif
 
@@ -863,5 +935,15 @@ assertState(struct proc* p, enum procstate state)
     cprintf("\nERROR: Process intended state is: %s, Actual state is %s\n", state, p->state);
     panic("Goodbye");
   }
+  return;
+}
+
+static void
+assertSuccess(struct proc* p, enum procstate state)
+{
+  if(p->state == state){
+    cprintf("\n SUCCESS! Process state switched to %d\n", state);
+  }
+  return;
 }
 #endif
