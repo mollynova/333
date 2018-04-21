@@ -126,7 +126,15 @@ found:
   release(&ptable.lock);
   // Allocate kernel stack.
   if((p->kstack = kalloc()) == 0){
+    if(stateListRemove(&ptable.pLists.embryo, &ptable.pLists.embryoTail, p) < 0){
+      panic("allocproc(): failed to remove process from EMBRYO list");
+    }
+    assertState(p, EMBRYO);
     p->state = UNUSED;
+    if(stateListAdd(&ptable.pLists.free, &ptable.pLists.freeTail, p) < 0){
+      panic("allocproc(): failed to add process to UNUSED list");
+    }
+    assertState(p, UNUSED);
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
@@ -822,7 +830,7 @@ wakeup1(void *chan)
 static void
 wakeup1(void *chan)
 {
-  cprintf("\ncalling wakeup1\n");
+//  cprintf("\ncalling wakeup1\n");
   struct proc *p;
 
   for(p = ptable.pLists.sleep; p != 0; p = p->next){
