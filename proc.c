@@ -466,7 +466,7 @@ exit(void)
   }
   // assert that proc's state is ZOMBIE
   assertState(proc, ZOMBIE);
-  release(&ptable.lock);
+//  release(&ptable.lock);
   sched();
   panic("zombie exit");
 }
@@ -642,6 +642,10 @@ scheduler(void)
     acquire(&ptable.lock);
     // attempt to remove process from ready list, panic if process is not in list
     for(p = ptable.pLists.ready; p != 0; p = p->next){
+      idle = 0;
+      proc = p;
+      switchuvm(p);
+      p->cpu_ticks_in = ticks;
      // if(!p)
       //  continue;
       if(stateListRemove(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
@@ -650,10 +654,7 @@ scheduler(void)
       }
       assertState(p, RUNNABLE);
       assertSuccess(p, RUNNABLE);
-      idle = 0;
-      proc = p;
-      switchuvm(p);
-      p->cpu_ticks_in = ticks;
+
       p->state = RUNNING;
 
       if(stateListAdd(&ptable.pLists.running, &ptable.pLists.runningTail, p) < 0){
@@ -669,6 +670,8 @@ scheduler(void)
       //acquire(&ptable.lock);
     // Process is done running for now.
     // It should have changed its p->state before coming back.
+      if(p->state == RUNNING)
+        panic("\nscheduler(): DIDNT CHANGE P STATE ON RET");
       proc = 0;
     }
     release(&ptable.lock);
@@ -793,7 +796,7 @@ sleep(void *chan, struct spinlock *lk)
   // if we don't find it, panic
 
   cprintf("\ncalling sleep\n");
-  acquire(&ptable.lock);
+ // acquire(&ptable.lock);
   if(stateListRemove(&ptable.pLists.running, &ptable.pLists.runningTail, proc) < 0){
     panic("sleep(): couldn't find process in RUNNING list");
   }
@@ -809,7 +812,7 @@ sleep(void *chan, struct spinlock *lk)
   }
   // assert its state is SLEEPING
   assertState(proc, SLEEPING);
-  release(&ptable.lock);
+  //release(&ptable.lock);
   sched();
 #endif
   // Tidy up.
@@ -845,21 +848,21 @@ wakeup1(void *chan)
   for(p = ptable.pLists.sleep; p != 0; p = p->next){
     // remove from sleep list
     if(p->chan == chan){
-    if(stateListRemove(&ptable.pLists.sleep, &ptable.pLists.sleepTail, p) < 0){
-       release(&ptable.lock);
-       panic("wakeup1(): failed to remove process from SLEEPING list");
-    }
-    // assert that state is sleep
-    assertState(p, SLEEPING);
-    // change state to RUNNABLE
-    p->state = RUNNABLE;
-    // add to RUNNABLE list
-    if(stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
-      release(&ptable.lock);
-      panic("wakeup1(): failed to add process to RUNNABLE list");
-    }
-    // assert that its state is now RUNNABLE
-    assertState(p, RUNNABLE);
+      if(stateListRemove(&ptable.pLists.sleep, &ptable.pLists.sleepTail, p) < 0){
+         release(&ptable.lock);
+         panic("wakeup1(): failed to remove process from SLEEPING list");
+      }
+      // assert that state is sleep
+      assertState(p, SLEEPING);
+      // change state to RUNNABLE
+      p->state = RUNNABLE;
+      // add to RUNNABLE list
+      if(stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
+        release(&ptable.lock);
+        panic("wakeup1(): failed to add process to RUNNABLE list");
+      }
+      // assert that its state is now RUNNABLE
+      assertState(p, RUNNABLE);
     }
   }
 }
