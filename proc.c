@@ -778,11 +778,7 @@ static void
 wakeup1(void *chan)
 {
   struct proc *p;
-/*
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
-      p->state = RUNNABLE;
-*/
+
   for(p = ptable.pLists.sleep; p != 0; p = p->next){
     // remove from sleep list
     if(stateListRemove(&ptable.pLists.sleep, &ptable.pLists.sleepTail, p) < 0){
@@ -840,19 +836,64 @@ kill(int pid)
 int
 kill(int pid)
 {
-  struct proc *p;
+  // go through ALL of the lists EXCEPT for UNUSED, kill process if its pid matches pid
+  // if it's sleeping, wake it up
+  struct proc *z, *ru, *re, *s, *e;
 
-  acquire(&ptable.lock);
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->pid == pid){
-      p->killed = 1;
-      // Wake process from sleep if necessary.
-      if(p->state == SLEEPING)
-        p->state = RUNNABLE;
+  // ZOMBIE list
+  for(z = ptable.pLists.zombie; z != 0; z = z->next){
+    if(z->pid == pid){
+      z->killed = 1;
       release(&ptable.lock);
       return 0;
     }
   }
+
+  // RUNNING list
+  for(ru = ptable.pLists.running; ru != 0; ru = ru->next){
+    if(ru->pid == pid){
+      ru->killed = 1;
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  // READY list
+  for(re = ptable.pLists.ready; re != 0; re = re->next){
+    if(re->pid == pid){
+      re->killed = 1;
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  // EMBRYO list
+  for(e = ptable.pLists.embryo; e != 0; e = e->next){
+    if(e->pid == pid){
+      e->killed = 1;
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  // SLEEPING list
+  for(s = ptable.pLists.sleep; s != 0; s = s->next){
+    if(s->pid == pid){
+      s->killed = 1;
+      // remove process from SLEEPING list
+      if(stateListRemove(&ptable.pLists.sleep, &ptable.pLists.sleepTail, s) < 0){
+        panic("kill(): failed to remove process from SLEEPING list");
+      }
+      // assert that process's state is SLEEPING
+      assertState(s, SLEEPING);
+      // change process state to RUNNABLE
+      s->state = RUNNABLE;
+      // add process to RUNNABLE list
+      if(stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, s) < 0){
+        panic("kill(): failed to add process to RUNNABLE list");
+      }
+      // assert that process state is now RUNNABLE
+      assertState(s, RUNNABLE);
+      release(&ptable.lock);
+      return 0;
+    }
   release(&ptable.lock);
   return -1;
 }
