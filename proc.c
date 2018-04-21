@@ -159,7 +159,6 @@ userinit(void)
   initFreeList();
   release(&ptable.lock);
 #endif
-
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
@@ -187,7 +186,9 @@ userinit(void)
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
-
+#ifndef CS333_P3P4
+  p->state = RUNNABLE;
+#endif
 #ifdef CS333_P3P4
   // attempt to remove process from embryo list
   acquire(&ptable.lock);
@@ -199,16 +200,19 @@ userinit(void)
   // assert that process's state is EMBRYO
   assertState(p, EMBRYO);
   assertSuccess(p, EMBRYO);
-#endif
   // change process's state to RUNNABLE
   p->state = RUNNABLE;
 
-#ifdef CS333_P3P4
   // add process to ready list- its the first process so we can just point ready
   // to it instead of using the 'add' function. its FIFO so we point tail to it too
-  ptable.pLists.ready = p;
-  p->next = 0;
-  ptable.pLists.readyTail = p;
+  if(stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
+     release(&ptable.lock);
+     panic("Could not add process to RUNNABLE list");
+  }
+  //ptable.pLists.ready = p;
+  //p->next = 0;
+  //ptable.pLists.readyTail = p;
+  release(&ptable.lock);
   // assert that its state is RUNNABLE
   assertState(p, RUNNABLE);
   assertSuccess(p, RUNNABLE);
@@ -357,7 +361,94 @@ exit(void)
 void
 exit(void)
 {
+// CS333_P3P4 version of exit
+  struct proc *e, *s, *z, *re, *ru;
+  int fd;
 
+  if(proc == initproc)
+    panic("init exiting");
+
+  // Close all open files.
+  for(fd = 0; fd < NOFILE; fd++){
+    if(proc->ofile[fd]){
+      fileclose(proc->ofile[fd]);
+      proc->ofile[fd] = 0;
+    }
+  }
+
+  begin_op();
+  iput(proc->cwd);
+  end_op();
+  proc->cwd = 0;
+
+  acquire(&ptable.lock);
+
+  // Parent might be sleeping in wait().
+  wakeup1(proc->parent);
+
+  // Pass abandoned children to init.
+  // proc is the running process, this for loop is looking for its children
+  // we have to go through all of the lists EXCEPT for UNUSED looking for parents
+  // ZOMBIES list
+  for(z = ptable.pLists.zombie; z != 0; z = z->next){
+    if(z->parent == proc){
+      z->parent = initproc;
+      if(z->state == ZOMBIE)
+        wakeup1(initproc);
+    }
+  }
+  // RUNNING list
+  for(ru = ptable.pLists.running; ru != 0; ru = ru->next){
+    if(ru->parent == proc){
+      ru->parent = initproc;
+      if(ru->state == ZOMBIE)
+        wakeup1(initproc);
+    }
+  }
+  // READY list
+  for(re = ptable.pLists.ready; re != 0; re = re->next){
+    if(re->parent == proc){
+      re->parent = initproc;
+      if(re->state == ZOMBIE)
+        wakeup1(initproc);
+    }
+  }
+  // EMBRYO list
+  for(e = ptable.pLists.embryo; e != 0; e = e->next){
+    if(e->parent == proc){
+      e->parent = initproc;
+      if(e->state == ZOMBIE)
+        wakeup1(initproc);
+    }
+  }
+  // SLEEPING list
+  for(s = ptable.pLists.sleep; s != 0; s = s->next){
+    if(s->parent == proc){
+      s->parent = initproc;
+      if(s->state == ZOMBIE)
+        wakeup1(initproc);
+    }
+  }
+
+  // Jump into the scheduler, never to return.
+  // proc will be RUNNING
+
+  // remove proc from RUNNING list, if it fails panic and msg
+  if(stateListRemove(&ptable.pLists.running, &ptable.pLists.runningTail, proc) < 0){
+    panic("exit(): failed to remove process from RUNNING list");
+  }
+  // assert that proc's state is RUNNING
+  assertState(proc, RUNNING);
+  // change proc's state to ZOMBIE
+  proc->state = ZOMBIE;
+  // add proc to ZOMBIE list
+  if(stateListAdd(&ptable.pLists.zombie, &ptable.pLists.zombieTail, proc) < 0){
+    panic("exit(): failed to add process to ZOMBIE list");
+  }
+  // assert that proc's state is ZOMBIE
+  assertState(proc, ZOMBIE);
+  sched();
+  panic("zombie exit");
 }
 #endif
 
@@ -408,8 +499,42 @@ wait(void)
 int
 wait(void)
 {
+  struct proc *p;
+  int havekids, pid;
 
-  return 0;  // placeholder
+  acquire(&ptable.lock);
+  for(;;){
+    // Scan through table looking for zombie children.
+    havekids = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->parent != proc)
+        continue;
+      havekids = 1;
+      if(p->state == ZOMBIE){
+        // Found one.
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        freevm(p->pgdir);
+        p->state = UNUSED;
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if(!havekids || proc->killed){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(proc, &ptable.lock);  //DOC: wait-sleep
+  }
 }
 #endif
 
@@ -485,6 +610,10 @@ scheduler(void)
     for(p = ptable.pLists.ready; p != 0; p = p->next){
       if(!p)
         continue;
+      if(stateListRemove(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
+        release(&ptable.lock);
+        panic("scheduler(): could not remove process from ready list");
+      }
       assertState(p, RUNNABLE);
       assertSuccess(p, RUNNABLE);
       idle = 0;
@@ -492,23 +621,7 @@ scheduler(void)
       switchuvm(p);
       p->cpu_ticks_in = ticks;
       p->state = RUNNING;
-        // do stuff
-      /*if(stateListRemove(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
-      release(&ptable.lock);
-      panic("scheduler(): could not remove process from ready list");
-    }
-    // assert p is RUNNABLE, panic if not
-    assertState(p, RUNNABLE);
-    assertSuccess(p, RUNNABLE);
-    // switch to chosen process. it is the process's job to release ptable.lock
-    // and then reacquire it before jumping back to us
-    idle = 0;
-    proc = p;
-    switchuvm(p);
-    p->cpu_ticks_in = ticks;
-    // switch p->state to RUNNING
-    p->state = RUNNING;
-    */
+
       if(stateListAdd(&ptable.pLists.running, &ptable.pLists.runningTail, p) < 0){
         release(&ptable.lock);
         panic("scheduler(): could not add process to running list");
@@ -516,16 +629,16 @@ scheduler(void)
     // assert p is now RUNNING, panic if not
       assertState(p, RUNNING);
       assertSuccess(p, RUNNING);
+      //release(&ptable.lock);
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
-
+      //acquire(&ptable.lock);
     // Process is done running for now.
     // It should have changed its p->state before coming back.
       proc = 0;
     }
     release(&ptable.lock);
   // if idle, wait for next interrupt
-    cprintf("\nOk we finished running the process\n");
     if (idle) {
       sti();
       hlt();
@@ -552,7 +665,7 @@ sched(void)
   intena = cpu->intena;
 
 #ifdef CS333_P2
-      proc->cpu_ticks_total += ticks - proc->cpu_ticks_in;
+  proc->cpu_ticks_total += ticks - proc->cpu_ticks_in;
 #endif
 
   swtch(&proc->context, cpu->scheduler);
@@ -597,6 +710,7 @@ forkret(void)
 void
 sleep(void *chan, struct spinlock *lk)
 {
+
   if(proc == 0)
     panic("sleep");
 
@@ -612,10 +726,30 @@ sleep(void *chan, struct spinlock *lk)
   }
 
   // Go to sleep.
+#ifndef CS333_P3P4
   proc->chan = chan;
   proc->state = SLEEPING;
   sched();
-
+#else
+  // search for proc in RUNNING list
+  // if we don't find it, panic
+  if(stateListRemove(&ptable.pLists.running, &ptable.pLists.runningTail, proc) < 0){
+    panic("sleep(): couldn't find process in RUNNING list");
+  }
+  // if we do find it, remove it from RUNNING list
+  // assert that proc's state is RUNNING
+  assertState(proc, RUNNING);
+  // change its state to SLEEPING
+  proc->chan = chan;
+  proc->state = SLEEPING;
+  // add it to sleep list
+  if(stateListAdd(&ptable.pLists.sleep, &ptable.pLists.sleepTail, proc) < 0){
+    panic("sleep(): couldn't add process to SLEEPING list");
+  }
+  // assert its state is SLEEPING
+  assertState(proc, SLEEPING);
+  sched();
+#endif
   // Tidy up.
   proc->chan = 0;
 
@@ -643,7 +777,30 @@ wakeup1(void *chan)
 static void
 wakeup1(void *chan)
 {
-
+  struct proc *p;
+/*
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    if(p->state == SLEEPING && p->chan == chan)
+      p->state = RUNNABLE;
+*/
+  for(p = ptable.pLists.sleep; p != 0; p = p->next){
+    // remove from sleep list
+    if(stateListRemove(&ptable.pLists.sleep, &ptable.pLists.sleepTail, p) < 0){
+       release(&ptable.lock);
+       panic("wakeup1(): failed to remove process from SLEEPING list");
+    }
+    // assert that state is sleep
+    assertState(p, SLEEPING);
+    // change state to RUNNABLE
+    p->state = RUNNABLE;
+    // add to RUNNABLE list
+    if(stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
+      release(&ptable.lock);
+      panic("wakeup1(): failed to add process to RUNNABLE list");
+    }
+    // assert that its state is now RUNNABLE
+    assertState(p, RUNNABLE);
+  }
 }
 #endif
 
@@ -683,8 +840,21 @@ kill(int pid)
 int
 kill(int pid)
 {
+  struct proc *p;
 
-  return 0;  // placeholder
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+      p->killed = 1;
+      // Wake process from sleep if necessary.
+      if(p->state == SLEEPING)
+        p->state = RUNNABLE;
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  release(&ptable.lock);
+  return -1;
 }
 #endif
 
@@ -932,7 +1102,7 @@ static void
 assertState(struct proc* p, enum procstate state)
 {
   if(p->state != state){
-    cprintf("\nERROR: Process intended state is: %s, Actual state is %s\n", state, p->state);
+    cprintf("\nERROR: Process intended state is: %d, Actual state is %d\n", state, p->state);
     panic("Goodbye");
   }
   return;
