@@ -77,6 +77,7 @@ allocproc(void)
   struct proc *p;
   char *sp;
 #ifdef CS333_P3P4
+  cprintf("\ncalling allocproc()\n");
   acquire(&ptable.lock);
   // Search free list for unused process
   for(p = ptable.pLists.free; p != 0; p = p->next){
@@ -154,6 +155,7 @@ void
 userinit(void)
 {
 #ifdef CS333_P3P4
+  cprintf("\ncalling userinit\n");
   acquire(&ptable.lock);
   initProcessLists();
   initFreeList();
@@ -281,6 +283,8 @@ fork(void)
 
   // lock to force the compiler to emit the np->state write last.
 #ifdef CS333_P3P4
+
+  cprintf("\ncalling fork\n");
   acquire(&ptable.lock);
   // attempt to remove np from EMBRYO list
   if(stateListRemove(&ptable.pLists.embryo, &ptable.pLists.embryoTail, np) < 0){
@@ -361,6 +365,7 @@ exit(void)
 void
 exit(void)
 {
+  cprintf("\ncalling exit\n");
 // CS333_P3P4 version of exit
   struct proc *e, *s, *z, *re, *ru;
   int fd;
@@ -499,6 +504,7 @@ wait(void)
 int
 wait(void)
 {
+  cprintf("\ncalling wait\n");
   struct proc *p;
   int havekids, pid;
 
@@ -607,6 +613,8 @@ scheduler(void)
 void
 scheduler(void)
 {
+
+  cprintf("\ncalling scheduler\n");
   struct proc *p;
   int idle;  // for checking if processor is idle
 
@@ -663,6 +671,8 @@ scheduler(void)
 void
 sched(void)
 {
+
+  cprintf("\ncalling sched\n");
   int intena;
 
   if(!holding(&ptable.lock))
@@ -687,10 +697,31 @@ sched(void)
 void
 yield(void)
 {
+#ifndef CS333_P3P4
   acquire(&ptable.lock);  //DOC: yieldlock
   proc->state = RUNNABLE;
   sched();
   release(&ptable.lock);
+#else
+  cprintf("\ncalling yield\n");
+  acquire(&ptable.lock);
+  // attempt to remove process from "RUNNING" list
+  if(stateListRemove(&ptable.pLists.running, &ptable.pLists.runningTail, proc) < 0){
+    panic("yield(): failed to remove process from RUNNING list");
+  }
+  // assert that process state is RUNNING
+  assertState(proc, RUNNING);
+  // change process state to RUNNABLE
+  proc->state = RUNNABLE;
+  // attempt to add process to READY list
+  if(stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, proc) < 0){
+    panic("yield(): failed to add process to READY list");
+  }
+  // assert that process state is now RUNNABLE
+  assertState(proc, RUNNABLE);
+  sched();
+  release(&ptable.lock);
+#endif
 }
 
 // A fork child's very first scheduling by scheduler()
@@ -698,6 +729,7 @@ yield(void)
 void
 forkret(void)
 {
+  cprintf("\ncalling forkret\n");
   static int first = 1;
   // Still holding ptable.lock from scheduler.
   release(&ptable.lock);
@@ -744,6 +776,8 @@ sleep(void *chan, struct spinlock *lk)
 #else
   // search for proc in RUNNING list
   // if we don't find it, panic
+
+  cprintf("\ncalling sleep\n");
   if(stateListRemove(&ptable.pLists.running, &ptable.pLists.runningTail, proc) < 0){
     panic("sleep(): couldn't find process in RUNNING list");
   }
@@ -788,6 +822,7 @@ wakeup1(void *chan)
 static void
 wakeup1(void *chan)
 {
+  cprintf("\ncalling wakeup1\n");
   struct proc *p;
 
   for(p = ptable.pLists.sleep; p != 0; p = p->next){
@@ -847,6 +882,7 @@ kill(int pid)
 int
 kill(int pid)
 {
+  cprintf("\ncalling kill\n");
   // go through ALL of the lists EXCEPT for UNUSED, kill process if its pid matches pid
   // if it's sleeping, wake it up
   struct proc *z, *ru, *re, *s, *e;
