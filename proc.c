@@ -506,24 +506,35 @@ wait(void)
   for(;;){
     // Scan through table looking for zombie children.
     havekids = 0;
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    for(p = ptable.pLists.zombie; p != 0; p = p->next){
       if(p->parent != proc)
         continue;
       havekids = 1;
-      if(p->state == ZOMBIE){
-        // Found one.
-        pid = p->pid;
-        kfree(p->kstack);
-        p->kstack = 0;
-        freevm(p->pgdir);
-        p->state = UNUSED;
-        p->pid = 0;
-        p->parent = 0;
-        p->name[0] = 0;
-        p->killed = 0;
-        release(&ptable.lock);
-        return pid;
+      pid = p->pid;
+      kfree(p->kstack);
+      p->kstack = 0;
+      freevm(p->pgdir);
+      // attempt to remove process from zombie list
+      if(stateListRemove(&ptable.pLists.zombie, &ptable.pLists.zombieTail, p) < 0){
+        panic("wait(): failed to remove process from ZOMBIE list");
       }
+      // assert that process state is ZOMBIE
+      assertState(p, ZOMBIE);
+      // change process state to UNUSED
+      p->state = UNUSED;
+      // attempt to add process to UNUSED list
+      if(stateListAdd(&ptable.pLists.free, &ptable.pLists.freeTail, p) < 0){
+        panic("wait(): failed to add process to UNUSED list");
+      }
+      // assert that process state is now UNUSED
+      assertState(p, UNUSED);
+
+      p->pid = 0;
+      p->parent = 0;
+      p->name[0] = 0;
+      p->killed = 0;
+      release(&ptable.lock);
+      return pid;
     }
 
     // No point waiting if we don't have any children.
@@ -894,6 +905,7 @@ kill(int pid)
       release(&ptable.lock);
       return 0;
     }
+  }
   release(&ptable.lock);
   return -1;
 }
