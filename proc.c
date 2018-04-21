@@ -91,9 +91,9 @@ allocproc(void)
       assertState(p, UNUSED);
       assertSuccess(p, UNUSED);
       goto Found;
+   }
   release(&ptable.lock);
   return 0;
-  }
 Found:
 
   p->state = EMBRYO;
@@ -126,6 +126,8 @@ found:
   release(&ptable.lock);
   // Allocate kernel stack.
   if((p->kstack = kalloc()) == 0){
+#ifdef CS333_P3P4
+    acquire(&ptable.lock);
     if(stateListRemove(&ptable.pLists.embryo, &ptable.pLists.embryoTail, p) < 0){
       panic("allocproc(): failed to remove process from EMBRYO list");
     }
@@ -135,6 +137,10 @@ found:
       panic("allocproc(): failed to add process to UNUSED list");
     }
     assertState(p, UNUSED);
+    release(&ptable.lock);
+#else
+    p->state = UNUSED;
+#endif
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
@@ -406,40 +412,40 @@ exit(void)
   for(z = ptable.pLists.zombie; z != 0; z = z->next){
     if(z->parent == proc){
       z->parent = initproc;
-      if(z->state == ZOMBIE)
-        wakeup1(initproc);
+      //if(z->state == ZOMBIE)
+      wakeup1(initproc);
     }
   }
   // RUNNING list
   for(ru = ptable.pLists.running; ru != 0; ru = ru->next){
     if(ru->parent == proc){
       ru->parent = initproc;
-      if(ru->state == ZOMBIE)
-        wakeup1(initproc);
+      //if(ru->state == ZOMBIE)
+       // wakeup1(initproc);
     }
   }
   // READY list
   for(re = ptable.pLists.ready; re != 0; re = re->next){
     if(re->parent == proc){
       re->parent = initproc;
-      if(re->state == ZOMBIE)
-        wakeup1(initproc);
+      //if(re->state == ZOMBIE)
+       // wakeup1(initproc);
     }
   }
   // EMBRYO list
   for(e = ptable.pLists.embryo; e != 0; e = e->next){
     if(e->parent == proc){
       e->parent = initproc;
-      if(e->state == ZOMBIE)
-        wakeup1(initproc);
+      //if(e->state == ZOMBIE)
+       // wakeup1(initproc);
     }
   }
   // SLEEPING list
   for(s = ptable.pLists.sleep; s != 0; s = s->next){
     if(s->parent == proc){
       s->parent = initproc;
-      if(s->state == ZOMBIE)
-        wakeup1(initproc);
+      //if(s->state == ZOMBIE)
+       // wakeup1(initproc);
     }
   }
 
@@ -460,6 +466,7 @@ exit(void)
   }
   // assert that proc's state is ZOMBIE
   assertState(proc, ZOMBIE);
+  release(&ptable.lock);
   sched();
   panic("zombie exit");
 }
@@ -635,8 +642,8 @@ scheduler(void)
     acquire(&ptable.lock);
     // attempt to remove process from ready list, panic if process is not in list
     for(p = ptable.pLists.ready; p != 0; p = p->next){
-      if(!p)
-        continue;
+     // if(!p)
+      //  continue;
       if(stateListRemove(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
         release(&ptable.lock);
         panic("scheduler(): could not remove process from ready list");
@@ -786,6 +793,7 @@ sleep(void *chan, struct spinlock *lk)
   // if we don't find it, panic
 
   cprintf("\ncalling sleep\n");
+  acquire(&ptable.lock);
   if(stateListRemove(&ptable.pLists.running, &ptable.pLists.runningTail, proc) < 0){
     panic("sleep(): couldn't find process in RUNNING list");
   }
@@ -801,6 +809,7 @@ sleep(void *chan, struct spinlock *lk)
   }
   // assert its state is SLEEPING
   assertState(proc, SLEEPING);
+  release(&ptable.lock);
   sched();
 #endif
   // Tidy up.
@@ -835,6 +844,7 @@ wakeup1(void *chan)
 
   for(p = ptable.pLists.sleep; p != 0; p = p->next){
     // remove from sleep list
+    if(p->chan == chan){
     if(stateListRemove(&ptable.pLists.sleep, &ptable.pLists.sleepTail, p) < 0){
        release(&ptable.lock);
        panic("wakeup1(): failed to remove process from SLEEPING list");
@@ -850,6 +860,7 @@ wakeup1(void *chan)
     }
     // assert that its state is now RUNNABLE
     assertState(p, RUNNABLE);
+    }
   }
 }
 #endif
@@ -894,7 +905,7 @@ kill(int pid)
   // go through ALL of the lists EXCEPT for UNUSED, kill process if its pid matches pid
   // if it's sleeping, wake it up
   struct proc *z, *ru, *re, *s, *e;
-
+  acquire(&ptable.lock);
   // ZOMBIE list
   for(z = ptable.pLists.zombie; z != 0; z = z->next){
     if(z->pid == pid){
