@@ -298,7 +298,6 @@ fork(void)
   // lock to force the compiler to emit the np->state write last.
 #ifdef CS333_P3P4
 
-  cprintf("\ncalling fork\n");
   acquire(&ptable.lock);
   // attempt to remove np from EMBRYO list
   if(stateListRemove(&ptable.pLists.embryo, &ptable.pLists.embryoTail, np) < 0){
@@ -474,7 +473,7 @@ exit(void)
 
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
-#ifdef CS333_P3P4
+#ifndef CS333_P3P4
 int
 wait(void)
 {
@@ -520,40 +519,67 @@ int
 wait(void)
 {
   //cprintf("\ncalling wait\n");
-  struct proc *p;
+  struct proc *e, *re, *ru, *s, *z;
   int havekids, pid;
 
   acquire(&ptable.lock);
   for(;;){
     // Scan through table looking for zombie children.
+
+    // embryo list
     havekids = 0;
-    for(p = ptable.pLists.zombie; p != 0; p = p->next){
-      if(p->parent != proc)
+    for(e = ptable.pLists.embryo; e != 0; e = e->next){
+      if(e->parent != proc)
         continue;
       havekids = 1;
-      pid = p->pid;
-      kfree(p->kstack);
-      p->kstack = 0;
-      freevm(p->pgdir);
+    }
+    // ready list
+    for(re = ptable.pLists.ready; re != 0; re = re->next){
+      if(re->parent != proc)
+        continue;
+      havekids = 1;
+    }
+    // running list
+    for(ru = ptable.pLists.running; ru != 0; ru = ru->next){
+      if(ru->parent != proc)
+        continue;
+      havekids = 1;
+    }
+    // sleeping list
+    for(s = ptable.pLists.sleep; s != 0; s = s->next){
+      if(s->parent != proc)
+        continue;
+      havekids = 1;
+    }
+    // zombie list
+    for(z = ptable.pLists.zombie; z != 0; z = z->next){
+      if(z->parent != proc)
+        continue;
+      havekids = 1;
+
+      pid = z->pid;
+      kfree(z->kstack);
+      z->kstack = 0;
+      freevm(z->pgdir);
       // attempt to remove process from zombie list
-      if(stateListRemove(&ptable.pLists.zombie, &ptable.pLists.zombieTail, p) < 0){
+      if(stateListRemove(&ptable.pLists.zombie, &ptable.pLists.zombieTail, z) < 0){
         panic("wait(): failed to remove process from ZOMBIE list");
       }
       // assert that process state is ZOMBIE
-      assertState(p, ZOMBIE);
+      assertState(z, ZOMBIE);
       // change process state to UNUSED
-      p->state = UNUSED;
+      z->state = UNUSED;
       // attempt to add process to UNUSED list
-      if(stateListAdd(&ptable.pLists.free, &ptable.pLists.freeTail, p) < 0){
+      if(stateListAdd(&ptable.pLists.free, &ptable.pLists.freeTail, z) < 0){
         panic("wait(): failed to add process to UNUSED list");
       }
       // assert that process state is now UNUSED
-      assertState(p, UNUSED);
+      assertState(z, UNUSED);
 
-      p->pid = 0;
-      p->parent = 0;
-      p->name[0] = 0;
-      p->killed = 0;
+      z->pid = 0;
+      z->parent = 0;
+      z->name[0] = 0;
+      z->killed = 0;
       release(&ptable.lock);
       return pid;
     }
