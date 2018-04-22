@@ -118,6 +118,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+int             setProcs(uint max, struct uproc * procs);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
