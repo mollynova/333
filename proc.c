@@ -57,7 +57,7 @@ static void initFreeList(void);
 static int stateListAdd(struct proc** head, struct proc** tail, struct proc* p);
 static int stateListRemove(struct proc** head, struct proc** tail, struct proc* p);
 static void assertState(struct proc* p, enum procstate state);
-static void assertSuccess(struct proc* p, enum procstate state);
+//static void assertSuccess(struct proc* p, enum procstate state);
 #endif
 
 void
@@ -77,7 +77,7 @@ allocproc(void)
   struct proc *p;
   char *sp;
 #ifdef CS333_P3P4
-  cprintf("\ncalling allocproc()\n");
+ // cprintf("\ncalling allocproc()\n");
   acquire(&ptable.lock);
   // Search free list for unused process
   for(p = ptable.pLists.free; p != 0; p = p->next){
@@ -89,7 +89,7 @@ allocproc(void)
       }
       // assert that process state is indeed 'unused' after its been removed from list
       assertState(p, UNUSED);
-      assertSuccess(p, UNUSED);
+//      assertSuccess(p, UNUSED);
       goto Found;
    }
   release(&ptable.lock);
@@ -104,7 +104,7 @@ Found:
   }
   // assert that p's state is indeed embryo, else panic
   assertState(p, EMBRYO);
-  assertSuccess(p, EMBRYO);
+  //assertSuccess(p, EMBRYO);
 #else
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -169,7 +169,7 @@ void
 userinit(void)
 {
 #ifdef CS333_P3P4
-  cprintf("\ncalling userinit\n");
+  //cprintf("\ncalling userinit\n");
   acquire(&ptable.lock);
   initProcessLists();
   initFreeList();
@@ -215,7 +215,7 @@ userinit(void)
   }
   // assert that process's state is EMBRYO
   assertState(p, EMBRYO);
-  assertSuccess(p, EMBRYO);
+  //assertSuccess(p, EMBRYO);
   // change process's state to RUNNABLE
   p->state = RUNNABLE;
 
@@ -231,7 +231,7 @@ userinit(void)
   release(&ptable.lock);
   // assert that its state is RUNNABLE
   assertState(p, RUNNABLE);
-  assertSuccess(p, RUNNABLE);
+  //assertSuccess(p, RUNNABLE);
 #endif
 }
 
@@ -308,7 +308,7 @@ fork(void)
   }
   // assert that np's state is EMBRYO
   assertState(np, EMBRYO);
-  assertSuccess(np, EMBRYO);
+  //assertSuccess(np, EMBRYO);
   // change np's state to RUNNABLE
   np->state = RUNNABLE;
   // add np to 'ready' list
@@ -319,7 +319,7 @@ fork(void)
   }
   // assert that np's state is RUNNABLE
   assertState(np, RUNNABLE);
-  assertSuccess(np, RUNNABLE);
+  //assertSuccess(np, RUNNABLE);
   release(&ptable.lock);
 #else
   // standard state transition
@@ -379,7 +379,7 @@ exit(void)
 void
 exit(void)
 {
-  cprintf("\ncalling exit\n");
+  //cprintf("\ncalling exit\n");
 // CS333_P3P4 version of exit
   struct proc *e, *s, *z, *re, *ru;
   int fd;
@@ -474,7 +474,7 @@ exit(void)
 
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
-#ifndef CS333_P3P4
+#ifdef CS333_P3P4
 int
 wait(void)
 {
@@ -519,7 +519,7 @@ wait(void)
 int
 wait(void)
 {
-  cprintf("\ncalling wait\n");
+  //cprintf("\ncalling wait\n");
   struct proc *p;
   int havekids, pid;
 
@@ -629,7 +629,7 @@ void
 scheduler(void)
 {
 
-  cprintf("\ncalling scheduler\n");
+  //cprintf("\ncalling scheduler\n");
   struct proc *p;
   int idle;  // for checking if processor is idle
 
@@ -653,7 +653,7 @@ scheduler(void)
         panic("scheduler(): could not remove process from ready list");
       }
       assertState(p, RUNNABLE);
-      assertSuccess(p, RUNNABLE);
+   //   assertSuccess(p, RUNNABLE);
 
       p->state = RUNNING;
 
@@ -663,7 +663,7 @@ scheduler(void)
       }
     // assert p is now RUNNING, panic if not
       assertState(p, RUNNING);
-      assertSuccess(p, RUNNING);
+    //  assertSuccess(p, RUNNING);
       //release(&ptable.lock);
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
@@ -690,7 +690,7 @@ void
 sched(void)
 {
 
-  cprintf("\ncalling sched\n");
+  //cprintf("\ncalling sched\n");
   int intena;
 
   if(!holding(&ptable.lock))
@@ -721,7 +721,7 @@ yield(void)
   sched();
   release(&ptable.lock);
 #else
-  cprintf("\ncalling yield\n");
+  //cprintf("\ncalling yield\n");
   acquire(&ptable.lock);
   // attempt to remove process from "RUNNING" list
   if(stateListRemove(&ptable.pLists.running, &ptable.pLists.runningTail, proc) < 0){
@@ -747,7 +747,7 @@ yield(void)
 void
 forkret(void)
 {
-  cprintf("\ncalling forkret\n");
+  //cprintf("\ncalling forkret\n");
   static int first = 1;
   // Still holding ptable.lock from scheduler.
   release(&ptable.lock);
@@ -795,7 +795,7 @@ sleep(void *chan, struct spinlock *lk)
   // search for proc in RUNNING list
   // if we don't find it, panic
 
-  cprintf("\ncalling sleep\n");
+  //cprintf("\ncalling sleep\n");
  // acquire(&ptable.lock);
   if(stateListRemove(&ptable.pLists.running, &ptable.pLists.runningTail, proc) < 0){
     panic("sleep(): couldn't find process in RUNNING list");
@@ -904,7 +904,7 @@ kill(int pid)
 int
 kill(int pid)
 {
-  cprintf("\ncalling kill\n");
+  //cprintf("\ncalling kill\n");
   // go through ALL of the lists EXCEPT for UNUSED, kill process if its pid matches pid
   // if it's sleeping, wake it up
   struct proc *z, *ru, *re, *s, *e;
@@ -1218,7 +1218,7 @@ assertState(struct proc* p, enum procstate state)
   }
   return;
 }
-
+/*
 static void
 assertSuccess(struct proc* p, enum procstate state)
 {
@@ -1227,4 +1227,5 @@ assertSuccess(struct proc* p, enum procstate state)
   }
   return;
 }
+*/
 #endif
