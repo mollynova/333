@@ -1189,7 +1189,112 @@ initFreeList(void) {
     stateListAdd(&ptable.pLists.free, &ptable.pLists.freeTail, p);
   }
 }
+
+// Function to print PIDs of all processes on READY list
+void
+ctrlr(void)
+{
+  struct proc *p;
+  cprintf("Ready List Processes:\n");
+
+  p = ptable.pLists.ready;
+
+  // if ready list is empty
+  if(!p){
+    cprintf("No processes in ready list.\n");
+  }
+  // else if there is one item in ready list
+  else if(p != 0 && p->next == 0){
+    cprintf("%d", p->pid);
+  }
+  // else if there is more than one item in ready list
+  else if(p->next != 0){
+    for(p = ptable.pLists.ready; p->next != 0; p = p->next){
+      cprintf("%d -> ", p->pid);
+    }
+    cprintf("%d", p->pid);
+  }
+}
+
+// Function to print the number of processes on the free list
+void
+ctrlf(void)
+{
+  struct proc *p;
+  int count;
+  for(p = ptable.pLists.free; p != 0; p = p->next){
+    ++count;
+  }
+  cprintf("Free List Size: %d processes\n", count);
+}
+
+// Function to print PIDs of all processes on the SLEEP list
+void
+ctrls(void)
+{
+  struct proc *p;
+  cprintf("Sleep List Processes:\n");
+
+  p = ptable.pLists.sleep;
+
+  // if ready list is empty
+  if(!p){
+    cprintf("No processes in sleep list.\n");
+  }
+  // else if there is one item in ready list
+  else if(p != 0 && p->next == 0){
+    cprintf("%d", p->pid);
+  }
+  // else if there is more than one item in ready list
+  else if(p->next != 0){
+    for(p = ptable.pLists.sleep; p->next != 0; p = p->next){
+      cprintf("%d -> ", p->pid);
+    }
+    cprintf("%d", p->pid);
+  }
+}
+
+// Function to print PIDs and PPIDs of all processes on ZOMBIE list
+void
+ctrlz(void)
+{
+  struct proc *p;
+  cprintf("Zombie List Processes:\n");
+
+  p = ptable.pLists.zombie;
+
+  // if ready list is empty
+  if(!p){
+    cprintf("No processes in zombie list.\n");
+  }
+  // else if there is one item in ready list
+  else if(p != 0 && p->next == 0){
+    if(p->pid == 1){
+      cprintf("(%d, 1)\n", p->pid);
+    }
+    else {
+      cprintf("(%d, %d)\n", p->pid, p->parent->pid);
+    }
+  }
+  // else if there is more than one item in ready list
+  else if(p->next != 0){
+    for(p = ptable.pLists.zombie; p->next != 0; p = p->next){
+      if(p->pid == 1){
+        cprintf("(%d, 1) -> ", p->pid);
+      }
+      else {
+        cprintf("(%d, %d) -> ", p->pid, p->parent->pid);
+      }
+    }
+    if(p->pid == 1){
+      cprintf("(%d, 1)", p->pid);
+    else{
+      cprintf("(%d, %d)", p->pid, p->parent->pid);
+    }
+  }
+}
 #endif
+
 #ifdef CS333_P2
 int
 setProcs(uint max, struct uproc * table)

@@ -190,6 +190,9 @@ void
 consoleintr(int (*getc)(void))
 {
   int c, doprocdump = 0;
+#ifdef CS333_P3P4
+  int doctrlr, doctrlf, doctrls, doctrlz = 0;
+#endif
 
   acquire(&cons.lock);
   while((c = getc()) >= 0){
@@ -197,6 +200,20 @@ consoleintr(int (*getc)(void))
     case C('P'):  // Process listing.
       doprocdump = 1;   // procdump() locks cons.lock indirectly; invoke later
       break;
+#ifdef CS333_P3P4
+    case C('R'): // print PIDs of processes on ready list
+      doctrlr = 1;
+      break;
+    case C('F'):
+      doctrlf = 1;
+      break;
+    case C('S'):
+      doctrls = 1;
+      break;
+    case C('Z'):
+      doctrlz = 1;
+      break;
+#endif
     case C('U'):  // Kill line.
       while(input.e != input.w &&
             input.buf[(input.e-1) % INPUT_BUF] != '\n'){
@@ -227,6 +244,20 @@ consoleintr(int (*getc)(void))
   if(doprocdump) {
     procdump();  // now call procdump() wo. cons.lock held
   }
+#ifdef CS333_P3P4
+  if(doctrlr) {
+    ctrlr();
+  }
+  if(doctrlf) {
+    ctrlf();
+  }
+  if(doctrls) {
+    ctrls();
+  }
+  if(doctrlz) {
+    ctrlz();
+  }
+#endif
 }
 
 int
