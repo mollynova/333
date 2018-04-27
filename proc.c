@@ -1205,14 +1205,14 @@ ctrlr(void)
   }
   // else if there is one item in ready list
   else if(p != 0 && p->next == 0){
-    cprintf("%d", p->pid);
+    cprintf("%d\n", p->pid);
   }
   // else if there is more than one item in ready list
   else if(p->next != 0){
     for(p = ptable.pLists.ready; p->next != 0; p = p->next){
       cprintf("%d -> ", p->pid);
     }
-    cprintf("%d", p->pid);
+    cprintf("%d\n", p->pid);
   }
 }
 
@@ -1222,10 +1222,15 @@ ctrlf(void)
 {
   struct proc *p;
   int count;
-  for(p = ptable.pLists.free; p != 0; p = p->next){
-    ++count;
+  p = ptable.pLists.free;
+  if(!p){
+    cprintf("Free List Size: 0 processes\n");
+  } else {
+    for(p = ptable.pLists.free; p != 0; p = p->next){
+      ++count;
+    }
+    cprintf("Free List Size: %d processes\n", count);
   }
-  cprintf("Free List Size: %d processes\n", count);
 }
 
 // Function to print PIDs of all processes on the SLEEP list
@@ -1243,14 +1248,14 @@ ctrls(void)
   }
   // else if there is one item in ready list
   else if(p != 0 && p->next == 0){
-    cprintf("%d", p->pid);
+    cprintf("%d\n", p->pid);
   }
   // else if there is more than one item in ready list
   else if(p->next != 0){
     for(p = ptable.pLists.sleep; p->next != 0; p = p->next){
       cprintf("%d -> ", p->pid);
     }
-    cprintf("%d", p->pid);
+    cprintf("%d\n", p->pid);
   }
 }
 
@@ -1287,9 +1292,10 @@ ctrlz(void)
       }
     }
     if(p->pid == 1){
-      cprintf("(%d, 1)", p->pid);
+      cprintf("(%d, 1)\n", p->pid);
+    }
     else{
-      cprintf("(%d, %d)", p->pid, p->parent->pid);
+      cprintf("(%d, %d)\n", p->pid, p->parent->pid);
     }
   }
 }

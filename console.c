@@ -191,7 +191,10 @@ consoleintr(int (*getc)(void))
 {
   int c, doprocdump = 0;
 #ifdef CS333_P3P4
-  int doctrlr, doctrlf, doctrls, doctrlz = 0;
+  int doctrlr = 0;
+  int doctrlf = 0;
+  int doctrls = 0;
+  int doctrlz = 0;
 #endif
 
   acquire(&cons.lock);
