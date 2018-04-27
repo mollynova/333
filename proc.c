@@ -666,20 +666,18 @@ scheduler(void)
     idle = 1;  // assume idle unless we schedule a process
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    // attempt to remove process from ready list, panic if process is not in list
+ /*   // attempt to remove process from ready list, panic if process is not in list
     for(p = ptable.pLists.ready; p != 0; p = p->next){
       idle = 0;
       proc = p;
       switchuvm(p);
       p->cpu_ticks_in = ticks;
-     // if(!p)
-      //  continue;
+
       if(stateListRemove(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
         release(&ptable.lock);
         panic("scheduler(): could not remove process from ready list");
       }
       assertState(p, RUNNABLE);
-   //   assertSuccess(p, RUNNABLE);
 
       p->state = RUNNING;
 
@@ -687,21 +685,52 @@ scheduler(void)
         release(&ptable.lock);
         panic("scheduler(): could not add process to running list");
       }
-    // assert p is now RUNNING, panic if not
+      // assert p is now RUNNING, panic if not
       assertState(p, RUNNING);
-    //  assertSuccess(p, RUNNING);
+      //assertSuccess(p, RUNNING);
       //release(&ptable.lock);
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
       //acquire(&ptable.lock);
-    // Process is done running for now.
-    // It should have changed its p->state before coming back.
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
       if(p->state == RUNNING)
         panic("\nscheduler(): DIDNT CHANGE P STATE ON RET");
       proc = 0;
     }
+*/
+    // if there is a process at the head of the ready list
+    p = ptable.pLists.ready;
+    if(p){
+      idle = 0;
+      proc = p;
+      switchuvm(p);
+      p->cpu_ticks_in = ticks;
+
+      if(stateListRemove(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
+        release(&ptable.lock);
+        panic("scheduler(): could not remove process from ready list");
+      }
+      assertState(p, RUNNABLE);
+
+      p->state = RUNNING;
+
+      if(stateListAdd(&ptable.pLists.running, &ptable.pLists.runningTail, p) < 0){
+        release(&ptable.lock);
+        panic("scheduler(): could not add process to running list");
+      }
+      // assert p is now RUNNING, panic if not
+      assertState(p, RUNNING);
+      //assertSuccess(p, RUNNING);
+      //release(&ptable.lock);
+      swtch(&cpu->scheduler, proc->context);
+      switchkvm();
+      //acquire(&ptable.lock);
+      // Process is done running for now.
+      proc = 0;
+    }
     release(&ptable.lock);
-  // if idle, wait for next interrupt
+    // if idle, wait for next interrupt
     if (idle) {
       sti();
       hlt();
@@ -1221,7 +1250,7 @@ void
 ctrlf(void)
 {
   struct proc *p;
-  int count;
+  uint count = 0;
   p = ptable.pLists.free;
   if(!p){
     cprintf("Free List Size: 0 processes\n");
