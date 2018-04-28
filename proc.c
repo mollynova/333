@@ -666,39 +666,6 @@ scheduler(void)
     idle = 1;  // assume idle unless we schedule a process
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
- /*   // attempt to remove process from ready list, panic if process is not in list
-    for(p = ptable.pLists.ready; p != 0; p = p->next){
-      idle = 0;
-      proc = p;
-      switchuvm(p);
-      p->cpu_ticks_in = ticks;
-
-      if(stateListRemove(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
-        release(&ptable.lock);
-        panic("scheduler(): could not remove process from ready list");
-      }
-      assertState(p, RUNNABLE);
-
-      p->state = RUNNING;
-
-      if(stateListAdd(&ptable.pLists.running, &ptable.pLists.runningTail, p) < 0){
-        release(&ptable.lock);
-        panic("scheduler(): could not add process to running list");
-      }
-      // assert p is now RUNNING, panic if not
-      assertState(p, RUNNING);
-      //assertSuccess(p, RUNNING);
-      //release(&ptable.lock);
-      swtch(&cpu->scheduler, proc->context);
-      switchkvm();
-      //acquire(&ptable.lock);
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      if(p->state == RUNNING)
-        panic("\nscheduler(): DIDNT CHANGE P STATE ON RET");
-      proc = 0;
-    }
-*/
     // if there is a process at the head of the ready list
     p = ptable.pLists.ready;
     if(p){
@@ -1226,6 +1193,7 @@ ctrlr(void)
   struct proc *p;
   cprintf("Ready List Processes:\n");
 
+  acquire(&ptable.lock);
   p = ptable.pLists.ready;
 
   // if ready list is empty
@@ -1243,6 +1211,7 @@ ctrlr(void)
     }
     cprintf("%d\n", p->pid);
   }
+  release(&ptable.lock);
 }
 
 // Function to print the number of processes on the free list
@@ -1251,6 +1220,7 @@ ctrlf(void)
 {
   struct proc *p;
   uint count = 0;
+  acquire(&ptable.lock);
   p = ptable.pLists.free;
   if(!p){
     cprintf("Free List Size: 0 processes\n");
@@ -1260,6 +1230,7 @@ ctrlf(void)
     }
     cprintf("Free List Size: %d processes\n", count);
   }
+  release(&ptable.lock);
 }
 
 // Function to print PIDs of all processes on the SLEEP list
@@ -1269,6 +1240,7 @@ ctrls(void)
   struct proc *p;
   cprintf("Sleep List Processes:\n");
 
+  acquire(&ptable.lock);
   p = ptable.pLists.sleep;
 
   // if ready list is empty
@@ -1286,6 +1258,7 @@ ctrls(void)
     }
     cprintf("%d\n", p->pid);
   }
+  release(&ptable.lock);
 }
 
 // Function to print PIDs and PPIDs of all processes on ZOMBIE list
@@ -1295,6 +1268,7 @@ ctrlz(void)
   struct proc *p;
   cprintf("Zombie List Processes:\n");
 
+  acquire(&ptable.lock);
   p = ptable.pLists.zombie;
 
   // if ready list is empty
@@ -1327,6 +1301,7 @@ ctrlz(void)
       cprintf("(%d, %d)\n", p->pid, p->parent->pid);
     }
   }
+  release(&ptable.lock);
 }
 #endif
 
@@ -1341,11 +1316,6 @@ setProcs(uint max, struct uproc * table)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
-    /*if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
-      state = states[p->state];
-    else
-      state = "???";
-*/
     if(2 <= p->state && p->state <= 4){
       if(i == max) continue;
       table[i].pid = p->pid;
@@ -1384,14 +1354,4 @@ assertState(struct proc* p, enum procstate state)
   }
   return;
 }
-/*
-static void
-assertSuccess(struct proc* p, enum procstate state)
-{
-  if(p->state == state){
-    cprintf("\n SUCCESS! Process state switched to %d\n", state);
-  }
-  return;
-}
-*/
 #endif
