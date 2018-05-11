@@ -12,8 +12,8 @@
 
 #ifdef CS333_P3P4
 struct StateLists {
-  struct proc* ready;
-  struct proc* readyTail;
+  struct proc* ready[MAXPRIO+1];
+  struct proc* readyTail[MAXPRIO+1];
   struct proc* free;
   struct proc* freeTail;
   struct proc* sleep;
@@ -32,6 +32,7 @@ struct {
   struct proc proc[NPROC];
 #ifdef CS333_P3P4
   struct StateLists pLists;
+  uint PromoteAtTime;
 #endif
 } ptable;
 
@@ -60,11 +61,13 @@ static void assertState(struct proc* p, enum procstate state);
 //static void assertSuccess(struct proc* p, enum procstate state);
 #endif
 
+
 void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
 }
+
 
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
@@ -89,6 +92,9 @@ allocproc(void)
       }
       // assert that process state is indeed 'unused' after its been removed from list
       assertState(p, UNUSED);
+      p->budget = DEF_BUDGET;
+      p->priority = 0;
+      p->next = NULL;
       goto Found;
    }
   release(&ptable.lock);
@@ -156,8 +162,9 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
-
+#ifdef CS333_P1
   p->start_ticks = ticks;
+#endif
   return p;
 }
 
@@ -170,6 +177,7 @@ userinit(void)
   acquire(&ptable.lock);
   initProcessLists();
   initFreeList();
+  ptable.PromoteAtTime = ticks + TICKS_TO_PROMOTE;
   release(&ptable.lock);
 #endif
   struct proc *p;
@@ -199,11 +207,9 @@ userinit(void)
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
-#ifndef CS333_P3P4
-  p->state = RUNNABLE;
-#endif
 #ifdef CS333_P3P4
   // attempt to remove process from embryo list
+  p->priority = 0;
   acquire(&ptable.lock);
   if(stateListRemove(&ptable.pLists.embryo, &ptable.pLists.embryoTail, p) < 0){
     // if process isn't in embryo list, release lock and panic
@@ -214,16 +220,23 @@ userinit(void)
   assertState(p, EMBRYO);
   // change process's state to RUNNABLE
   p->state = RUNNABLE;
-
+/*
   // add process to ready list- its the first process so we can just point ready
   // to it instead of using the 'add' function. its FIFO so we point tail to it too
   if(stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
      release(&ptable.lock);
      panic("Could not add process to RUNNABLE list");
   }
+*/
+  ptable.pLists.ready[0] = p;
+  ptable.pLists.readyTail[0] = p;
   release(&ptable.lock);
   // assert that its state is RUNNABLE
   assertState(p, RUNNABLE);
+  p->next = NULL;
+  p->budget = DEF_BUDGET;
+#else
+  p->state = RUNNABLE;
 #endif
 }
 
@@ -607,9 +620,8 @@ scheduler(void)
       switchuvm(p);
 #ifdef CS333_P2
       p->cpu_ticks_in = ticks;
-      p->state = RUNNING;
 #endif
-
+      p->state = RUNNING;
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
 
@@ -634,6 +646,7 @@ scheduler(void)
   struct proc *p;
   int idle;  // for checking if processor is idle
 
+
   for(;;){
     // Enable interrupts on this processor.
     sti();
@@ -641,14 +654,50 @@ scheduler(void)
     idle = 1;  // assume idle unless we schedule a process
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+#ifndef CS333_P3_ONLY
+    // if its time to adjust priorities
+    if(ticks >= ptable.PromoteAtTime ){
+      // Promote all
+
+      // reset PromoteAtTime value
+      ptable.PromoteAtTime = ticks + TICKS_TO_PROMOTE;
+    }
+
+    // go through ready queues starting at 0 up to MAXPRIO looking for a proc to run
+    for(int i = 0; i < (MAXPRIO + 1); ++i){
+      p = ptable.pLists.ready[i];
+      if(p){
+        idle = 0;
+	proc = p;
+	switchuvm(p);
+	p->cpu_ticks_in = ticks;
+        if(stateListRemove(&ptable.pLists.ready[i], &ptable.pLists.readyTail[i], p) < 0){
+	  release(&ptable.lock);
+	  panic("scheduler() P4: could not remove process from ready queue");
+	}
+	assertState(p, RUNNABLE);
+	p->state = RUNNING;
+	if(stateListAdd(&ptable.pLists.running, &ptable.pLists.runningTail, p) < 0){
+	  release(&ptable.lock);
+	  panic("scheduler() P4: could not add process to running list");
+	}
+	assertState(p, RUNNING);
+	swtch(&cpu->scheduler, proc->context);
+	switchkvm();
+	proc = 0;
+	goto BREAK;
+      }
+    }
+    BREAK:
     // if there is a process at the head of the ready list
+#else
     p = ptable.pLists.ready;
     if(p){
       idle = 0;
       proc = p;
       switchuvm(p);
       p->cpu_ticks_in = ticks;
-
+      p = ptable.pLists.ready;
       if(stateListRemove(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
         release(&ptable.lock);
         panic("scheduler(): could not remove process from ready list");
@@ -663,11 +712,13 @@ scheduler(void)
       }
       // assert p is now RUNNING, panic if not
       assertState(p, RUNNING);
+      p = ptable.pLists.ready;
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
       // Process is done running for now.
       proc = 0;
     }
+#endif
     release(&ptable.lock);
     // if idle, wait for next interrupt
     if (idle) {
@@ -701,6 +752,15 @@ sched(void)
   proc->cpu_ticks_total += ticks - proc->cpu_ticks_in;
 #endif
 
+#ifdef CS333_P3P4
+// check to see if proc->budget >= DEF_BUDGET
+// if so, demote its priority before context switch
+  if(proc->budget >= DEF_BUDGET){
+    if(proc->priority != 0){
+      proc->priority -= 1;
+    }
+  }
+#endif
   swtch(&proc->context, cpu->scheduler);
   cpu->intena = intena;
 }
@@ -1124,8 +1184,15 @@ stateListRemove(struct proc** head, struct proc** tail, struct proc* p)
 
 static void
 initProcessLists(void) {
+#ifdef CS333_P3_ONLY
   ptable.pLists.ready = 0;
   ptable.pLists.readyTail = 0;
+#else
+  for(int i = 0; i < (MAXPRIO + 1); ++i){
+    ptable.pLists.ready[i] = 0;
+    ptable.pLists.readyTail[i] = 0;
+  }
+#endif
   ptable.pLists.free = 0;
   ptable.pLists.freeTail = 0;
   ptable.pLists.sleep = 0;

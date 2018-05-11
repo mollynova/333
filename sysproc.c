@@ -172,3 +172,17 @@ sys_getprocs(void)
   // cast it to a uint yo
 }
 #endif
+
+#ifdef CS333_P3P4
+int
+sys_setpriority(void)
+{
+  int pid, prio;
+  if((argint(0, &pid) <= 0) || (argint(0, &pid) != proc->pid))
+    return -1;
+  if((argint(1, &prio) < 0) || (argint(1, &prio) > MAXPRIO))
+    return -1;
+  proc->priority = prio;
+  return 0;
+}
+#endif

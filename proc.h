@@ -61,6 +61,9 @@ struct proc {
 #endif
 #ifdef CS333_P3P4
   struct proc *next;           // pointer to next item in each list of procs
+//  uint PromoteAtTime;
+  uint priority;
+  uint budget;
 #endif
   uint start_ticks;            // counts ticks
   uint sz;                     // Size of process memory (bytes)

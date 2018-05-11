@@ -110,6 +110,9 @@ extern int sys_setuid(void);
 extern int sys_setgid(void);
 extern int sys_getprocs(void);
 #endif
+#ifdef CS333_P3P4
+extern int sys_setpriority(void);
+#endif
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -145,6 +148,9 @@ static int (*syscalls[])(void) = {
 [SYS_setgid]   sys_setgid,
 [SYS_getprocs] sys_getprocs,
 #endif
+#ifdef CS333_P3P4
+[SYS_setpriority] sys_setpriority,
+#endif
 };
 
 #ifdef PRINT_SYSCALLS
@@ -171,13 +177,20 @@ static char* syscallnames[] = {
 [SYS_mkdir]   "mkdir",
 [SYS_close]   "close",
 [SYS_halt]    "halt",
+#ifdef CS333_P1
 [SYS_date]    "date",
+#endif
+#ifdef CS333_P2
 [SYS_getuid]  "getuid",
 [SYS_getgid]  "getgid",
 [SYS_getppid] "getppid",
 [SYS_setuid]  "setuid",
 [SYS_setgid]  "setgid",
 [SYS_getprocs] "getprocs",
+#endif
+#ifdef CS333_P3P4
+[SYS_setpriority] "setpriority",
+#endif
 };
 #endif
 // put data structure for printing out system call invocation information here

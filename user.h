@@ -43,6 +43,11 @@ int setgid(uint);   // set GID
 int getprocs(uint, struct uproc*); // call a function to load ptable into uproc array
 #endif
 
+// add prototypes to user.h file: P4
+#ifdef CS333_P3P4
+int setpriority(int, int);
+#endif
+
 // ulib.c
 int stat(char*, struct stat*);
 char* strcpy(char*, char*);
