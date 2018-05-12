@@ -94,7 +94,7 @@ allocproc(void)
       }
       // assert that process state is indeed 'unused' after its been removed from list
       assertState(p, UNUSED);
-      p->budget = DEF_BUDGET;
+      p->budget = 0;
       p->priority = 0;
       p->next = NULL;
       goto Found;
@@ -241,7 +241,7 @@ userinit(void)
   // assert that its state is RUNNABLE
   assertState(p, RUNNABLE);
   p->next = NULL;
-  p->budget = DEF_BUDGET;
+  p->budget = 0;
 #else
   p->state = RUNNABLE;
 #endif
@@ -694,9 +694,9 @@ scheduler(void)
     // check to see if proc->budget >= DEF_BUDGET
     // if so, demote its priority before context switch
     if(proc->budget >= DEF_BUDGET){
-      if(proc->priority != 0){
+      if(proc->priority != MAXPRIO){
         proc->priority += 1;
-        proc->budget = DEF_BUDGET;
+        proc->budget = 0;
       }
     }
 
@@ -790,7 +790,7 @@ sched(void)
   proc->cpu_ticks_total += ticks - proc->cpu_ticks_in;
 #endif
 #ifdef CS333_P3P4
-  proc->budget -= (ticks - proc->cpu_ticks_in);
+  proc->budget += (ticks - proc->cpu_ticks_in);
 #endif
   swtch(&proc->context, cpu->scheduler);
   cpu->intena = intena;
