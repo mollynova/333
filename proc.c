@@ -423,9 +423,11 @@ exit(void)
     }
   }
   // RUNNING list
-  for(ru = ptable.pLists.running; ru != 0; ru = ru->next){
-    if(ru->parent == proc){
-      ru->parent = initproc;
+  for(int i = 0; i < (MAXPRIO + 1); ++i){
+    for(ru = ptable.pLists.running[i]; ru != 0; ru = ru->next){
+      if(ru->parent == proc){
+        ru->parent = initproc;
+      }
     }
   }
   // READY list
@@ -817,7 +819,7 @@ yield(void)
   proc->state = RUNNABLE;
   // attempt to add process to READY list
   if(stateListAdd(&ptable.pLists.ready[proc->priority], &ptable.pLists.readyTail[proc->priority], proc) < 0){
-    panic("yield(): failed to add process to READY list");
+    panic("yield() P4: failed to add process to READY list");
   }
   // assert that process state is now RUNNABLE
   assertState(proc, RUNNABLE);
@@ -936,9 +938,9 @@ wakeup1(void *chan)
       // change state to RUNNABLE
       p->state = RUNNABLE;
       // add to RUNNABLE list
-      if(stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, p) < 0){
+      if(stateListAdd(&ptable.pLists.ready[p->priority], &ptable.pLists.readyTail[p->priority], p) < 0){
         release(&ptable.lock);
-        panic("wakeup1(): failed to add process to RUNNABLE list");
+        panic("wakeup1() P4: failed to add process to RUNNABLE list");
       }
       // assert that its state is now RUNNABLE
       assertState(p, RUNNABLE);
@@ -998,11 +1000,13 @@ kill(int pid)
   }
 
   // RUNNING list
-  for(ru = ptable.pLists.running; ru != 0; ru = ru->next){
-    if(ru->pid == pid){
-      ru->killed = 1;
-      release(&ptable.lock);
-      return 0;
+  for(int i = 0; i < (MAXPRIO + 1); ++i){
+    for(ru = ptable.pLists.running[i]; ru != 0; ru = ru->next){
+      if(ru->pid == pid){
+        ru->killed = 1;
+        release(&ptable.lock);
+        return 0;
+      }
     }
   }
   // READY list
@@ -1034,8 +1038,8 @@ kill(int pid)
       // change process state to RUNNABLE
       s->state = RUNNABLE;
       // add process to RUNNABLE list
-      if(stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, s) < 0){
-        panic("kill(): failed to add process to RUNNABLE list");
+      if(stateListAdd(&ptable.pLists.ready[s->priority], &ptable.pLists.readyTail[s->priority], s) < 0){
+        panic("kill() p4: failed to add process to RUNNABLE list");
       }
       // assert that process state is now RUNNABLE
       assertState(s, RUNNABLE);
