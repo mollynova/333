@@ -15,5 +15,5 @@
 #define UID           1   // default UID
 #define GID           1    // default GID
 #define MAXPRIO       3
-#define TICKS_TO_PROMOTE  4000
-#define DEF_BUDGET        8000
+#define TICKS_TO_PROMOTE  8000
+#define DEF_BUDGET        4000
