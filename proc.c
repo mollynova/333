@@ -789,6 +789,9 @@ sched(void)
 #endif
 #ifdef CS333_P3P4
   proc->budget += (ticks - proc->cpu_ticks_in);
+#endif
+#ifdef CS333_P3P4_OFF
+  proc->budget += (ticks - proc->cpu_ticks_in);
   if(proc->budget >= DEF_BUDGET){
     if(proc->priority < MAXPRIO){
       if(stateListRemove(&ptable.pLists.ready[proc->priority], &ptable.pLists.readyTail[proc->priority], proc) >= 0){
@@ -832,6 +835,21 @@ yield(void)
   }
   // assert that process state is now RUNNABLE
   assertState(proc, RUNNABLE);
+  // we know state is gonna be runnable, so we need to move the queue as well as resetting everything
+  if(proc->budget >= DEF_BUDGET){
+    if(proc->priority < MAXPRIO){
+      if(stateListRemove(&ptable.pLists.ready[proc->priority], &ptable.pLists.readyTail[proc->priority], proc) < 0){
+	panic("yield P4: failed to remove proc from its queue during demotion");
+      }
+      proc->priority += 1;
+      if(stateListAdd(&ptable.pLists.ready[proc->priority], &ptable.pLists.readyTail[proc->priority], proc) < 0){
+	panic("yield P4: failed to add proc to new queue after demotion");
+      }
+    }
+    else {
+      proc->budget = 0;
+    }
+  }
   sched();
   release(&ptable.lock);
 #endif
@@ -904,6 +922,13 @@ sleep(void *chan, struct spinlock *lk)
   }
   // assert its state is SLEEPING
   assertState(proc, SLEEPING);
+  // we know proc is sleeping so we just check for demotion, dont move anything
+  if(proc->budget >= DEF_BUDGET){
+    proc->budget = 0;
+    if(proc->priority < MAXPRIO){
+      proc->priority += 1;
+    }
+  }
   sched();
 #endif
   // Tidy up.
@@ -1285,8 +1310,17 @@ promoteReady(void)
 
   for(int i = 1; i < (MAXPRIO + 1); ++i){
     for(p = ptable.pLists.ready[i]; p != 0; p = p->next){
+//      cprintf("before promote: PID: %d, PRIO: %d\n", p->pid, p->priority);
       if(p->priority != 0){
+        if(stateListRemove(&ptable.pLists.ready[p->priority], &ptable.pLists.readyTail[p->priority], p) < 0){
+	  panic("promoteReady: failed to remove proc from its prio queue");
+        }
+        assertPrio(p->priority, i);
 	p->priority -= 1;
+        if(stateListAdd(&ptable.pLists.ready[p->priority], &ptable.pLists.readyTail[p->priority], p) < 0){
+	  panic("promoteReady: failed to add proc to its prio queue");
+        }
+//	cprintf("after promote: PID: %d, PRIO: %d\n", p->pid, p->priority);
       }
     }
   }
@@ -1296,26 +1330,33 @@ promoteReady(void)
 void
 ctrlr(void)
 {
+  acquire(&ptable.lock);
   struct proc *p;
   cprintf("Ready List Processes:\n");
-
-  acquire(&ptable.lock);
-  for(int i = 0; i < (MAXPRIO + 1); ++i){
-  p = ptable.pLists.ready[i];
-  // if ready list is empty
+  p = ptable.pLists.ready[0];
   if(!p){
     cprintf("No processes in ready list.\n");
   }
-  // else if there is one item in ready list
-  else if(p != 0 && p->next == 0){
-    cprintf("%d\n", p->pid);
-  }
-  // else if there is more than one item in ready list
-  else if(p->next != 0){
-    for(p = ptable.pLists.ready[i]; p->next != 0; p = p->next){
-      cprintf("%d -> ", p->pid);
+  else {
+
+    for(int i = 0; i < (MAXPRIO + 1); ++i){
+    p = ptable.pLists.ready[i];
+    // if ready list is empty
+    if(!p){
+      cprintf("%d: \n", i);
     }
-    cprintf("%d\n", p->pid);
+    // else if there is one item in ready list
+    else if(p != 0 && p->next == 0){
+      cprintf("%d. (%d, %d)\n", i, p->pid, p->budget);
+    }
+    // else if there is more than one item in ready list
+    else if(p->next != 0){
+      cprintf("%d. ", i);
+      for(p = ptable.pLists.ready[i]; p->next != 0; p = p->next){
+        cprintf("(%d, %d) -> ", p->pid, p->budget);
+      }
+      cprintf("(%d, %d)\n", p->pid, p->budget);
+    }
   }
   }
   release(&ptable.lock);
@@ -1463,7 +1504,6 @@ assertState(struct proc* p, enum procstate state)
   }
   return;
 }
-
 static void
 assertPrio(int prio, int prioQueue)
 {
