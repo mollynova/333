@@ -60,6 +60,7 @@ static int stateListRemove(struct proc** head, struct proc** tail, struct proc* 
 static void assertState(struct proc* p, enum procstate state);
 static void assertPrio(int prio, int prioQueue);
 static void promoteReady(void);
+static int setPrio(int Pid, int Prio);
 //static void assertSuccess(struct proc* p, enum procstate state);
 #endif
 
@@ -1504,6 +1505,7 @@ assertState(struct proc* p, enum procstate state)
   }
   return;
 }
+
 static void
 assertPrio(int prio, int prioQueue)
 {
@@ -1512,4 +1514,50 @@ assertPrio(int prio, int prioQueue)
     panic("\nProcess priority does not match queue it was removed from\n");
   }
 }
+
+// called by sys_setpriority
+static void
+setPrio(int Pid, int Prio)
+{
+  acquire(&ptable.lock);
+  struct proc* s, run, re;
+  for(s = ptable.pLists.sleep; s != 0; s = s->next){
+    if(s->pid == Pid){
+      s->priority = Prio;
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  for(run = ptable.pLists.running; run != 0; run = run->next){
+    if(run->pid == Pid){
+      run->priority = Prio;
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  for(int i = 0; i < (MAXPRIO + 1); ++i){
+    for(re = ptable.pLists.ready[i]; re != 0; re = re->next){
+      if(re->pid == Pid){
+	re->priority = Prio;
+	release(&ptable.lock);
+	return 0;
+      }
+    }
+  }
+  release(&ptable.lock);
+  return -1;
+}
 #endif
+
+
+
+
+
+
+
+
+
+
+
+
+

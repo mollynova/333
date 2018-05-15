@@ -178,7 +178,7 @@ int
 sys_setpriority(void)
 {
   int pid, prio;
-  if((argint(0, &pid) <= 0) || (argint(0, &pid) != proc->pid))
+  if((argint(0, &pid) <= 0) || (argint(0, &pid) > NPROC))
     return -1;
   if((argint(1, &prio) < 0) || (argint(1, &prio) > MAXPRIO))
     return -1;
@@ -188,7 +188,6 @@ sys_setpriority(void)
   // -change proc's ready queue IF it was in the runnable list
   //   -if its on the ready but and its prio is being changed to the prio it already is
   //   -just continue, dont put it on the back of its own queue
-  proc->priority = prio;
-  return 0;
+  return setPrio(pid, prio);
 }
 #endif

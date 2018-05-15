@@ -16,4 +16,4 @@
 #define GID           1    // default GID
 #define MAXPRIO       7
 #define TICKS_TO_PROMOTE  1000
-#define DEF_BUDGET        2000
+#define DEF_BUDGET        300
