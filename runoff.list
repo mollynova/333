@@ -95,3 +95,4 @@ p2testsuite.c
 testuidgid.c
 uproc.h
 p3testsuite.c
+p4testsuite.c

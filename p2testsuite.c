@@ -52,7 +52,7 @@ testgid(uint new_val, uint expected_get_val, int expected_set_ret){
   }
   post_gid = getgid();
   if(post_gid != expected_get_val){
-    printf(2, "FAILED: UID was %d. After setgid(%d), getgid() returned %d, expected %d\n", 
+    printf(2, "FAILED: UID was %d. After setgid(%d), getgid() returned %d, expected %d\n",
           pre_gid, new_val, post_gid, expected_get_val);
     success = -1;
   }
@@ -73,7 +73,7 @@ testuid(uint new_val, uint expected_get_val, int expected_set_ret){
   }
   post_uid = getuid();
   if(post_uid != expected_get_val){
-    printf(2, "FAILED: UID was %d. After setuid(%d), getuid() returned %d, expected %d\n", 
+    printf(2, "FAILED: UID was %d. After setuid(%d), getuid() returned %d, expected %d\n",
           pre_uid, new_val, post_uid, expected_get_val);
     success = -1;
   }
@@ -102,7 +102,7 @@ testuidgid(void)
     success = -1;
   if (testuid(-1, 32767, -1))
     success = -1;
- 
+
   gid = getgid();
   if(gid < 0 || gid > 32767){
     printf(1, "FAILED: Default GID %d, out of range\n", gid);
@@ -118,7 +118,7 @@ testuidgid(void)
     success = -1;
   if (testgid(32768, 32767, -1))
     success = -1;
- 
+
   if (success == 0)
     printf(1, "** All tests passed! **\n");
 }
@@ -147,7 +147,7 @@ testuidgidinheritance(void){
       printf(2, "FAILED: Parent GID is 12345, child GID is %d\n", gid);
     }
     else
-      printf(1, "** Test Passed! **\n"); 
+      printf(1, "** Test Passed! **\n");
     exit();
   }
   else {
@@ -164,7 +164,7 @@ static int
 getcputime(char * name, struct uproc * table){
   struct uproc *p = 0;
   int size;
-  
+
   size = getprocs(64, table);
   for(int i = 0; i < size; ++i){
     if(strcmp(table[i].name, name) == 0){
@@ -212,7 +212,7 @@ testcputime(char * name){
   }
   if((time2 - time1) > 400){
     printf(2, "ABNORMALLY HIGH: T2 - T1 = %d milliseconds.  Run test again\n", (time2 - time1));
-    success = -1; 
+    success = -1;
   }
   printf(1, "T2 - T1 = %d milliseconds\n", (time2 - time1));
   free(table);
@@ -231,7 +231,7 @@ testprocarray(int max, int expected_ret, char * name){
   struct uproc * table;
   int ret, success, num_init, num_sh, num_this;
   success = num_init = num_sh = num_this = 0;
-  
+
   table = malloc(sizeof(struct uproc) * max);
   ret = getprocs(max, table);
   for (int i = 0; i < ret; ++i){
@@ -296,7 +296,7 @@ testgetprocs(char * name){
       success = -1;
     if (success == 0)
       printf(1, "** All Tests Passed **\n");
-    exit(); 
+    exit();
   }
   wait();
 }
@@ -307,7 +307,7 @@ testgetprocs(char * name){
 void
 testtimewitharg(char **arg){
   int ret;
- 
+
   ret = fork();
   if (ret == 0){
     exec(arg[0], arg);
@@ -348,7 +348,7 @@ testtime(void){
   strcpy(arg4[2], "echo");
   arg4[3] = malloc(sizeof(char) * 6);
   strcpy(arg4[3], "\"abc\"");
- 
+
   printf(1, "\n----------\nRunning Time Test\n----------\n");
   printf(1, "You will need to verify these tests passed\n");
 

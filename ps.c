@@ -76,8 +76,11 @@ int main(void)
 int
 main(void)
 {
-
+#ifndef CS333_P3P4
   printf(1, "PID\tName\tUID\tGID\tPPID\tElapsed\tCPU\tState\tSize\n");
+#else
+  printf(1, "PID\tName\t\tUID\tGID\tPPID\tPrio\tElapsed\tCPU\tState\tSize\n");
+#endif
   struct uproc* table  = (struct uproc*)malloc(MAX * sizeof(struct uproc));
   int ret = getprocs(MAX, table);
   if(ret < 0) {
@@ -92,7 +95,11 @@ main(void)
     uint Ppid = table[i].ppid;
     uint Elapsed_ticks = table[i].elapsed_ticks;
     uint Size = table[i].size;
-    printf(1, "%d\t%s\t%d\t%d\t%d\t", Pid, table[i].name, Uid, Gid, Ppid);
+    printf(1, "%d\t%s\t\t%d\t%d\t%d\t", Pid, table[i].name, Uid, Gid, Ppid);
+#ifdef CS333_P3P4
+    uint Prio = table[i].prio;
+    printf(1, "%d\t", Prio);
+#endif
     print_ticks(Elapsed_ticks);
     print_cpu(table[i].CPU_total_ticks);
     printf(1, "%s\t%d\n", table[i].state, Size);
