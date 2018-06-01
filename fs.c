@@ -705,12 +705,24 @@ changeown(char* path, int own)
 int
 changegrp(char* path, int grp)
 {
-  return -1;
+  struct inode *ip;
+  if((ip = namei(path)) == 0)
+    return -1;
+  ilock(ip);
+  ip->gid = grp;
+  iunlock(ip);
+  return 1;
 }
 
 int
 changemode(char* path, int mode)
 {
-  return -1;
+  struct inode *ip;
+  if((ip = namei(path)) == 0)
+    return -1;
+  ilock(ip);
+  ip->mode.asInt = mode;
+  iunlock(ip);
+  return 1;
 }
 #endif

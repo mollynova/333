@@ -2,9 +2,11 @@
 #include "types.h"
 #include "user.h"
 int
-main(void)
+main(int argc, char *argv[])
 {
-  printf(1, "Not imlpemented yet.\n");
+  int ret = chmod(argv[2], atoi(argv[1]));
+  if(ret < 0)
+    printf(2, "Error: chmod call failed. %s at line %d\n", __FILE__, __LINE__);
   exit();
 }
 

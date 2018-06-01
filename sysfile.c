@@ -446,7 +446,7 @@ sys_chmod(void)
 {
   char* path;
   int n;
-  if(argptr(0, (void*)&path, sizeof(path)) < 0)
+  if(argstr(0, &path) < 0)
     return -1;
   if(argint(1, &n) < 0)
     return -1;
@@ -455,7 +455,7 @@ sys_chmod(void)
   // int chmod(char *pathname, int mode)
   // sets the mode, or permission, bits for the target specified by pathname
   // the return val is 0 on success, -1 on failure
-  return -1;
+  return changemode(path, n);;
 }
 
 int
@@ -463,24 +463,11 @@ sys_chown(void)
 {
   char* path;
   int n;
-  //struct inode *ip;
 
   if(argstr(0, &path) < 0)
     return -1;
   if(argint(1, &n) < 0)
     return -1;
-/*
-  cprintf("Path is: %s\n", path);
-  cprintf("Int is: %d\n", n);
-  begin_op();
-  if((ip = namei(path)) == 0){
-    end_op();
-    return -1;
-  }
-  cprintf("ip current uid is: %d\n", ip->uid);
-  ip->uid = n;
-  end_op();
-*/
   return changeown(path, n);
   // int chown(char *pathname, int owner)
   // sets the user UID for the target specified by pathname. ret 0 on success
@@ -492,13 +479,14 @@ sys_chgrp(void)
 {
   char* path;
   int n;
-  if(argptr(0, (void*)&path, sizeof(path)) < 0)
+
+  if(argstr(0, &path) < 0)
     return -1;
   if(argint(1, &n) < 0)
     return -1;
+  return changegrp(path, n);
   // int chgrp(char *pathname, int group)
   // sets the group GID for the target specified by pathname. 0 success -1 failure
-  return -1;
 }
 #endif
 
