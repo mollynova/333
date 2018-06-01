@@ -5,7 +5,7 @@
 //   + Directories: inode with special contents (list of other inodes!)
 //   + Names: paths like /usr/rtm/xv6/fs.c for convenient naming.
 //
-// This file contains the low-level file system manipulation 
+// This file contains the low-level file system manipulation
 // routines.  The (higher-level) system call implementations
 // are in sysfile.c.
 
@@ -22,6 +22,9 @@
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 static void itrunc(struct inode*);
+int changeown(char* path, int own);
+int changegrp(char* path, int grp);
+int changemode(char* path, int mode);
 struct superblock sb;   // there should be one per dev, but we run with one dev
 
 // Read the super block.
@@ -29,7 +32,7 @@ void
 readsb(int dev, struct superblock *sb)
 {
   struct buf *bp;
-  
+
   bp = bread(dev, 1);
   memmove(sb, bp->data, sizeof(*sb));
   brelse(bp);
@@ -40,14 +43,14 @@ static void
 bzero(int dev, int bno)
 {
   struct buf *bp;
-  
+
   bp = bread(dev, bno);
   memset(bp->data, 0, BSIZE);
   log_write(bp);
   brelse(bp);
 }
 
-// Blocks. 
+// Blocks.
 
 // Allocate a zeroed disk block.
 static uint
@@ -61,7 +64,7 @@ balloc(uint dev)
     bp = bread(dev, BBLOCK(b, sb));
     for(bi = 0; bi < BPB && b + bi < sb.size; bi++){
       m = 1 << (bi % 8);
-      if((bp->data[bi/8] & m) == 0){  // Is block free?
+     if((bp->data[bi/8] & m) == 0){  // Is block free?
         bp->data[bi/8] |= m;  // Mark block in use.
         log_write(bp);
         brelse(bp);
@@ -209,6 +212,11 @@ iupdate(struct inode *ip)
   dip->minor = ip->minor;
   dip->nlink = ip->nlink;
   dip->size = ip->size;
+#ifdef CS333_P5
+  dip->mode.asInt = ip->mode.asInt;
+  dip->uid = ip->uid;
+  dip->gid = ip->gid;
+#endif
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
   log_write(bp);
   brelse(bp);
@@ -245,6 +253,12 @@ iget(uint dev, uint inum)
   ip->inum = inum;
   ip->ref = 1;
   ip->flags = 0;
+#ifdef CS333_P5
+  ip->mode.asInt = MODE;
+  ip->uid = 0;
+  ip->gid = 0;
+#endif
+
   release(&icache.lock);
 
   return ip;
@@ -286,6 +300,11 @@ ilock(struct inode *ip)
     ip->minor = dip->minor;
     ip->nlink = dip->nlink;
     ip->size = dip->size;
+#ifdef CS333_P5
+    ip->mode.asInt = dip->mode.asInt;
+    ip->uid = dip->uid;
+    ip->gid = dip->gid;
+#endif
     memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
     brelse(bp);
     ip->flags |= I_VALID;
@@ -330,6 +349,11 @@ iput(struct inode *ip)
     acquire(&icache.lock);
     ip->flags = 0;
     wakeup(ip);
+#ifdef CS333_P5
+    ip->uid = 0;
+    ip->gid = 0;
+    ip->mode.asInt = MODE;
+#endif
   }
   ip->ref--;
   release(&icache.lock);
@@ -348,7 +372,7 @@ iunlockput(struct inode *ip)
 //
 // The content (data) associated with each inode is stored
 // in blocks on the disk. The first NDIRECT block numbers
-// are listed in ip->addrs[].  The next NINDIRECT blocks are 
+// are listed in ip->addrs[].  The next NINDIRECT blocks are
 // listed in block ip->addrs[NDIRECT].
 
 // Return the disk block address of the nth block in inode ip.
@@ -401,7 +425,7 @@ itrunc(struct inode *ip)
       ip->addrs[i] = 0;
     }
   }
-  
+
   if(ip->addrs[NDIRECT]){
     bp = bread(ip->dev, ip->addrs[NDIRECT]);
     a = (uint*)bp->data;
@@ -427,6 +451,11 @@ stati(struct inode *ip, struct stat *st)
   st->type = ip->type;
   st->nlink = ip->nlink;
   st->size = ip->size;
+#ifdef CS333_P5
+  st->mode.asInt = ip->mode.asInt;
+  st->uid = ip->uid;
+  st->gid = ip->gid;
+#endif
 }
 
 //PAGEBREAK!
@@ -554,7 +583,7 @@ dirlink(struct inode *dp, char *name, uint inum)
   de.inum = inum;
   if(writei(dp, (char*)&de, off, sizeof(de)) != sizeof(de))
     panic("dirlink");
-  
+
   return 0;
 }
 
@@ -649,3 +678,39 @@ nameiparent(char *path, char *name)
 {
   return namex(path, 1, name);
 }
+
+#ifdef CS333_P5
+int
+changeown(char* path, int own)
+{
+  struct inode *ip;
+// lock
+  cprintf("The path is: %s\n", path);
+  //acquire(&icache.lock);
+
+  if((ip = namei(path)) == 0){
+// release lock
+ //   release(&icache.lock);
+    return -1;
+  }
+//  release(&icache.lock);
+  ilock(ip);
+  ip->uid = own;
+  iunlock(ip);
+// release lock
+  return 1;
+
+}
+
+int
+changegrp(char* path, int grp)
+{
+  return -1;
+}
+
+int
+changemode(char* path, int mode)
+{
+  return -1;
+}
+#endif

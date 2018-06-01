@@ -14,6 +14,8 @@
 #define FSSIZE       2000  // size of file system in blocks  // CS333 requires a larger FS.
 #define UID           1   // default UID
 #define GID           1    // default GID
-#define MAXPRIO       7
-#define TICKS_TO_PROMOTE  1000
-#define DEF_BUDGET        300
+#define MODE       0755   // default MODE for P5
+#define MAXPRIO       6
+#define TICKS_TO_PROMOTE  3000
+#define DEF_BUDGET        1000
+#define DEFAULT_UID   0

@@ -60,7 +60,7 @@ static int stateListRemove(struct proc** head, struct proc** tail, struct proc* 
 static void assertState(struct proc* p, enum procstate state);
 static void assertPrio(int prio, int prioQueue);
 static void promoteReady(void);
-static int setPrio(int Pid, int Prio);
+//static int setPrio(int Pid, int Prio);
 //static void assertSuccess(struct proc* p, enum procstate state);
 #endif
 
@@ -578,7 +578,7 @@ wait(void)
       // assert that process state is now UNUSED
       assertState(z, UNUSED);
 
-      z->priority = 0;
+      //z->priority = 0;
       z->budget = 0;
       z->pid = 0;
       z->parent = 0;
@@ -676,7 +676,9 @@ scheduler(void)
       if(ptable.pLists.running){
 	for(run = ptable.pLists.running; run != 0; run = run->next){
           if(run->priority != 0){
-	    run->priority -= 1;
+	    //run->priority -= 1;
+	    run->priority = run->priority - 1;
+	    run->budget = 0;
           }
         }
       }
@@ -684,7 +686,9 @@ scheduler(void)
       if(ptable.pLists.sleep){
 	for(s = ptable.pLists.sleep; s != 0; s = s->next){
 	  if(s->priority != 0){
-	    s->priority -= 1;
+	    s->priority = s->priority - 1;
+	    //s->priority -= 1;
+            s->budget = 0;
 	  }
 	}
       }
@@ -740,6 +744,7 @@ scheduler(void)
         panic("scheduler(): could not remove process from ready list");
       }
       assertState(p, RUNNABLE);
+      assertPrio(p->priority, p->priority);
 
       p->state = RUNNING;
 
@@ -791,22 +796,6 @@ sched(void)
 #ifdef CS333_P3P4
   proc->budget += (ticks - proc->cpu_ticks_in);
 #endif
-#ifdef CS333_P3P4_OFF
-  proc->budget += (ticks - proc->cpu_ticks_in);
-  if(proc->budget >= DEF_BUDGET){
-    if(proc->priority < MAXPRIO){
-      if(stateListRemove(&ptable.pLists.ready[proc->priority], &ptable.pLists.readyTail[proc->priority], proc) >= 0){
-	proc->priority += 1;
-	if(stateListAdd(&ptable.pLists.ready[proc->priority], &ptable.pLists.readyTail[proc->priority], proc) < 0){
-	  panic("sched() P4: failed to add proc to new prio queue");
-        }
-      } else {
-	proc->priority += 1;
-      }
-      proc->budget = 0;
-    }
-  }
-#endif
   swtch(&proc->context, cpu->scheduler);
   cpu->intena = intena;
 }
@@ -843,9 +832,11 @@ yield(void)
 	panic("yield P4: failed to remove proc from its queue during demotion");
       }
       proc->priority += 1;
+      assertPrio(proc->priority, proc->priority);
       if(stateListAdd(&ptable.pLists.ready[proc->priority], &ptable.pLists.readyTail[proc->priority], proc) < 0){
 	panic("yield P4: failed to add proc to new queue after demotion");
       }
+      proc->budget = 0;
     }
     else {
       proc->budget = 0;
@@ -925,8 +916,9 @@ sleep(void *chan, struct spinlock *lk)
   assertState(proc, SLEEPING);
   // we know proc is sleeping so we just check for demotion, dont move anything
   if(proc->budget >= DEF_BUDGET){
-    proc->budget = 0;
+   // proc->budget = 0;
     if(proc->priority < MAXPRIO){
+      proc->budget = 0;
       proc->priority += 1;
     }
   }
@@ -1311,7 +1303,6 @@ promoteReady(void)
 
   for(int i = 1; i < (MAXPRIO + 1); ++i){
     for(p = ptable.pLists.ready[i]; p != 0; p = p->next){
-//      cprintf("before promote: PID: %d, PRIO: %d\n", p->pid, p->priority);
       if(p->priority != 0){
         if(stateListRemove(&ptable.pLists.ready[p->priority], &ptable.pLists.readyTail[p->priority], p) < 0){
 	  panic("promoteReady: failed to remove proc from its prio queue");
@@ -1321,7 +1312,7 @@ promoteReady(void)
         if(stateListAdd(&ptable.pLists.ready[p->priority], &ptable.pLists.readyTail[p->priority], p) < 0){
 	  panic("promoteReady: failed to add proc to its prio queue");
         }
-//	cprintf("after promote: PID: %d, PRIO: %d\n", p->pid, p->priority);
+        p->budget = 0;
       }
     }
   }
@@ -1472,6 +1463,7 @@ setProcs(uint max, struct uproc * table)
       table[i].gid = p->gid;
 #ifdef CS333_P3P4
       table[i].prio = p->priority;
+      table[i].budg = p->budget;
 #endif
       if(p->pid == 1)
          table[i].ppid = 1;
@@ -1516,11 +1508,12 @@ assertPrio(int prio, int prioQueue)
 }
 
 // called by sys_setpriority
-static void
+int
 setPrio(int Pid, int Prio)
 {
+//  cprintf("\nAre we getting here...?\n");
   acquire(&ptable.lock);
-  struct proc* s, run, re;
+  struct proc *s, *run, *re;
   for(s = ptable.pLists.sleep; s != 0; s = s->next){
     if(s->pid == Pid){
       s->priority = Prio;
@@ -1538,7 +1531,16 @@ setPrio(int Pid, int Prio)
   for(int i = 0; i < (MAXPRIO + 1); ++i){
     for(re = ptable.pLists.ready[i]; re != 0; re = re->next){
       if(re->pid == Pid){
+//	cprintf("\nFound one in the runble list\nQueue was %d\n", re->priority);
+	if(stateListRemove(&ptable.pLists.ready[re->priority], &ptable.pLists.readyTail[re->priority], re) < 0){
+	  panic("setPrio P4: failed to remove proc from current prio queue\n");
+	}
+	assertPrio(re->priority, i);
 	re->priority = Prio;
+	if(stateListAdd(&ptable.pLists.ready[re->priority], &ptable.pLists.readyTail[re->priority], re) < 0){
+	  panic("setPrio P4: failed to add proc to new prio queue\n");
+	}
+//	  cprintf("Added it to queue %d\n", re->priority);
 	release(&ptable.lock);
 	return 0;
       }

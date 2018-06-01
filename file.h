@@ -15,7 +15,11 @@ struct inode {
   uint inum;          // Inode number
   int ref;            // Reference count
   int flags;          // I_BUSY, I_VALID
-
+#ifdef CS333_P5
+  ushort uid;
+  ushort gid;
+  union mode_t mode;
+#endif
   short type;         // copy of disk inode
   short major;
   short minor;

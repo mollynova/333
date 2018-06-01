@@ -177,10 +177,17 @@ sys_getprocs(void)
 int
 sys_setpriority(void)
 {
-  int pid, prio;
-  if((argint(0, &pid) <= 0) || (argint(0, &pid) > NPROC))
+  int pid;
+  int prio;
+  //if((argint(0, &pid) <= 0) || (argint(0, &pid) > NPROC))
+  if(argint(0, &pid) < 0)
     return -1;
-  if((argint(1, &prio) < 0) || (argint(1, &prio) > MAXPRIO))
+  if(pid > NPROC || pid <= 0)
+    return -1;
+//  if((argint(1, &prio) < 0) || (argint(1, &prio) > MAXPRIO))
+  if(argint(1, &prio) < 0)
+    return -1;
+  if(prio > MAXPRIO || prio < 0)
     return -1;
   // CALL FUNCTION IN PROC.C: function needs to:
   // -change proc's priority to prio
@@ -188,6 +195,9 @@ sys_setpriority(void)
   // -change proc's ready queue IF it was in the runnable list
   //   -if its on the ready but and its prio is being changed to the prio it already is
   //   -just continue, dont put it on the back of its own queue
+
+//  cprintf("\nAre we getting to sys_setpriority? pid: %d, prio: %d\n", pid, prio);
   return setPrio(pid, prio);
 }
 #endif
+

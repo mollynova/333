@@ -48,6 +48,13 @@ int getprocs(uint, struct uproc*); // call a function to load ptable into uproc 
 int setpriority(int, int);
 #endif
 
+// add prototypes to user.h file: P5
+#ifdef CS333_P5
+int chmod(char *pathname, int mode);
+int chown(char *pathname, int owner);
+int chgrp(char *pathname, int group);
+#endif
+
 // ulib.c
 int stat(char*, struct stat*);
 char* strcpy(char*, char*);

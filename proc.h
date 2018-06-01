@@ -90,3 +90,6 @@ struct proc {
 struct uproc;
 int setProcs(uint max, struct uproc * procs);
 #endif
+#ifdef CS333_P3P4
+int setPrio(int Pid, int Prio);
+#endif
