@@ -23,13 +23,9 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 static void itrunc(struct inode*);
 #ifdef CS333_P5
-//int changeown(char* path, int own);
-void changeown(struct inode *ip, int own);
-//int changegrp(char* path, int grp);
+int changeown(char* path, int own);
 int changemode(char* path, int mode);
-//void changemode(struct inode *ip, int mode);
-//int changemode(char* path, int mode);
-void changegrp(struct inode *ip, int grp);
+int changegrp(char* path, int grp);
 #endif
 struct superblock sb;   // there should be one per dev, but we run with one dev
 
@@ -691,53 +687,33 @@ nameiparent(char *path, char *name)
 }
 
 #ifdef CS333_P5
-/*
 int
 changeown(char* path, int own)
 {
   struct inode *ip;
-// lock
-  //acquire(&icache.lock);
-
   if((ip = namei(path)) == 0){
-// release lock
- //   release(&icache.lock);
     return -1;
   }
-//  release(&icache.lock);
   ilock(ip);
-//  if(ip->flags & I_BUSY)
- //   panic("Yo here in chown it's already locked");
-//  acquire(&icache.lock);
   ip->uid = own;
- // iupdate(ip);
- // release(&icache.lock);
-//  iupdate(ip);
-  iunlock(ip);
   iupdate(ip);
-// release lock
+  iunlock(ip);
+  iput(ip);
   return 0;
-
 }
-*/
+/*
 void
 changeown(struct inode *ip, int own)
 {
   ip->uid = own;
 }
-/*
-void
-changemode(struct inode *ip, int mode)
-{
-  ip->mode.asInt = mode;
-}
 */
-void
+/*void
 changegrp(struct inode *ip, int grp)
 {
   ip->gid = grp;
 }
-/*
+*/
 int
 changegrp(char* path, int grp)
 {
@@ -748,9 +724,10 @@ changegrp(char* path, int grp)
   ip->gid = grp;
   iupdate(ip);
   iunlock(ip);
+  iput(ip);
   return 0;
 }
-*/
+
 int
 changemode(char* path, int mode)
 {

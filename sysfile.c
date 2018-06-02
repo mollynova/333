@@ -477,19 +477,13 @@ sys_chmod(void)
   iput(ip);
   end_op();
   return 0;
-
-  // do stuff.
-  // int chmod(char *pathname, int mode)
-  // sets the mode, or permission, bits for the target specified by pathname
-  // the return val is 0 on success, -1 on failure
-  //return changemode(path, n);;
 */
 }
 
 int
 sys_chown(void)
 {
-  struct inode *ip;
+ // struct inode *ip;
   char* path;
   int n;
 
@@ -499,44 +493,19 @@ sys_chown(void)
     return -1;
   if(n < 1) return -1;
   begin_op();
-  if((ip = namei(path)) == 0){
+  int ret = changeown(path, n);
+  if(ret < 0){
     end_op();
     return -1;
   }
-  ilock(ip);
-  if(ip->type == T_DIR){
-    iunlockput(ip);
-    end_op();
-    return -1;
-  }
-  changeown(ip, n);
-  iupdate(ip);
-  iunlock(ip);
-  iput(ip);
   end_op();
   return 0;
-  // int chown(char *pathname, int owner)
-  // sets the user UID for the target specified by pathname. ret 0 on success
-  // or -1 on fail
 }
 
 int
 sys_chgrp(void)
 {
-/*  char* path;
-  int n;
-
-  if(argstr(0, &path) < 0)
-    return -1;
-  if(argint(1, &n) < 0)
-    return -1;
-  if(n < 1) return -1;
-  begin_op();
-  changegrp(path,n);
-  end_op();
-  return 0;
-*/
-  struct inode* ip;
+  //struct inode* ip;
   char* path;
   int n;
   if(argstr(0, &path) < 0)
@@ -545,25 +514,13 @@ sys_chgrp(void)
     return -1;
   if(n < 1) return -1;
   begin_op();
-  if((ip = namei(path)) == 0){
+  int ret = changegrp(path, n);
+  if(ret < 0){
     end_op();
     return -1;
   }
-  ilock(ip);
-  if(ip->type == T_DIR){
-    iunlockput(ip);
-    end_op();
-    return -1;
-  }
-  changegrp(ip, n);
-  iupdate(ip);
-  iunlock(ip);
-  iput(ip);
   end_op();
   return 0;
-  //return changegrp(path, n);
-  // int chgrp(char *pathname, int group)
-  // sets the group GID for the target specified by pathname. 0 success -1 failure
 }
 #endif
 
