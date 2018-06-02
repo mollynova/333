@@ -1,4 +1,4 @@
-// File system implementation.  Five layers:
+/// File system implementation.  Five layers:
 //   + Blocks: allocator for raw disk blocks.
 //   + Log: crash recovery for multi-step updates.
 //   + Files: inode allocator, reading, writing, metadata.
@@ -7,7 +7,7 @@
 //
 // This file contains the low-level file system manipulation
 // routines.  The (higher-level) system call implementations
-// are in sysfile.c.
+/// are in sysfile.c.
 
 #include "types.h"
 #include "defs.h"
@@ -22,9 +22,15 @@
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 static void itrunc(struct inode*);
-int changeown(char* path, int own);
-int changegrp(char* path, int grp);
+#ifdef CS333_P5
+//int changeown(char* path, int own);
+void changeown(struct inode *ip, int own);
+//int changegrp(char* path, int grp);
 int changemode(char* path, int mode);
+//void changemode(struct inode *ip, int mode);
+//int changemode(char* path, int mode);
+void changegrp(struct inode *ip, int grp);
+#endif
 struct superblock sb;   // there should be one per dev, but we run with one dev
 
 // Read the super block.
@@ -189,6 +195,11 @@ ialloc(uint dev, short type)
     if(dip->type == 0){  // a free inode
       memset(dip, 0, sizeof(*dip));
       dip->type = type;
+#ifdef CS333_P5
+      dip->uid = UID;
+      dip->gid = GID;
+      dip->mode.asInt = MODE;
+#endif
       log_write(bp);   // mark it allocated on the disk
       brelse(bp);
       return iget(dev, inum);
@@ -680,12 +691,12 @@ nameiparent(char *path, char *name)
 }
 
 #ifdef CS333_P5
+/*
 int
 changeown(char* path, int own)
 {
   struct inode *ip;
 // lock
-  cprintf("The path is: %s\n", path);
   //acquire(&icache.lock);
 
   if((ip = namei(path)) == 0){
@@ -695,13 +706,38 @@ changeown(char* path, int own)
   }
 //  release(&icache.lock);
   ilock(ip);
+//  if(ip->flags & I_BUSY)
+ //   panic("Yo here in chown it's already locked");
+//  acquire(&icache.lock);
   ip->uid = own;
+ // iupdate(ip);
+ // release(&icache.lock);
+//  iupdate(ip);
   iunlock(ip);
+  iupdate(ip);
 // release lock
-  return 1;
+  return 0;
 
 }
-
+*/
+void
+changeown(struct inode *ip, int own)
+{
+  ip->uid = own;
+}
+/*
+void
+changemode(struct inode *ip, int mode)
+{
+  ip->mode.asInt = mode;
+}
+*/
+void
+changegrp(struct inode *ip, int grp)
+{
+  ip->gid = grp;
+}
+/*
 int
 changegrp(char* path, int grp)
 {
@@ -710,10 +746,11 @@ changegrp(char* path, int grp)
     return -1;
   ilock(ip);
   ip->gid = grp;
+  iupdate(ip);
   iunlock(ip);
-  return 1;
+  return 0;
 }
-
+*/
 int
 changemode(char* path, int mode)
 {
@@ -722,7 +759,9 @@ changemode(char* path, int mode)
     return -1;
   ilock(ip);
   ip->mode.asInt = mode;
+  iupdate(ip);
   iunlock(ip);
-  return 1;
+  iput(ip);
+  return 0;
 }
 #endif

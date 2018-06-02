@@ -46,9 +46,14 @@ union mode_t {
   uint asInt;
 };
 
-int changeown(char* path, int own);
-int changegrp(char* path, int grp);
+//int changeown(char* path, int own);
+//int changegrp(char* path, int grp);
+struct inode;
+void changegrp(struct inode *ip, int grp);
+void changeown(struct inode *ip, int own);
+//void changemode(struct inode *ip, int mode);
 int changemode(char* path, int mode);
+//int changemode(char* path, int mode);
 #endif
 
 // On-disk inode structure

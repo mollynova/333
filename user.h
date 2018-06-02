@@ -53,6 +53,9 @@ int setpriority(int, int);
 int chmod(char *pathname, int mode);
 int chown(char *pathname, int owner);
 int chgrp(char *pathname, int group);
+//union mode;
+//union mode_t;
+//struct flags;
 #endif
 
 // ulib.c
@@ -68,3 +71,7 @@ void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);
 int atoi(const char*);
+#ifdef CS333_P5
+int atoo(const char*);
+#endif
+
