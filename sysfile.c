@@ -441,7 +441,7 @@ sys_pipe(void)
 }
 
 #ifdef CS333_P5
-int
+32381
 sys_chmod(void)
 {
  // struct inode *ip;
@@ -451,6 +451,21 @@ sys_chmod(void)
     return -1;
   if(argint(1, &n) < 0)
     return -1;
+
+  int check = n;
+  int thou = check / (8*8*8);
+  /*int hund = check / 64;
+  if(hund > 7){
+    hund -= 8;
+  }
+*/
+  int hund = (check - (thou*(8*8*8))) / (8*8);
+  int ten = (check - (thou*(8*8*8)) - (hund*(8*8))) / 8;
+  int one = (check - (thou*(8*8*8)) - (hund*(8*8)) - (ten*8));
+  cprintf("check: %d, thou: %d, hund: %d, ten: %d, one: %d\n", check, thou, hund, ten, one);
+  if((thou != 0 && thou != 1) || hund < 0 || hund > 7 || ten < 0 || ten > 7 || one < 0 || one > 7){
+    return -2;
+  }
   begin_op();
   int ret = changemode(path, n);
   if(ret < 0){
@@ -459,25 +474,6 @@ sys_chmod(void)
   }
   end_op();
   return 0;
-/*
-  begin_op();
-  if((ip = namei(path)) == 0){
-    end_op();
-    return -1;
-  }
-  ilock(ip);
-  if(ip->type == T_DIR){
-    iunlockput(ip);
-    end_op();
-    return -1;
-  }
-  changemode(ip, n);
-  iupdate(ip);
-  iunlock(ip);
-  iput(ip);
-  end_op();
-  return 0;
-*/
 }
 
 int

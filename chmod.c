@@ -10,6 +10,7 @@ main(int argc, char *argv[])
 {
   // i could have also stored atoi(argv[1]) in 'check' and done it with base 10, but I figured I'd stick with the octal
   // so that it's clear we're working with an octal number
+/*
   int check = atoo(argv[1]);
 
   int thou = check / (8*8*8);
@@ -24,10 +25,13 @@ main(int argc, char *argv[])
     printf(2, "Error: chmod call failed. Invalid octal\n");
     exit();
   }
-
-  int ret = chmod(argv[2], check);
-  if(ret < 0)
+*/
+  int ret = chmod(argv[2], atoo(argv[1]));
+  if(ret == -1){
     printf(2, "Error: chmod call failed. %s at line %d\n", __FILE__, __LINE__);
+  } else if(ret == -2){
+    printf(2, "Error: chmod call failed. Invalid octal\n");
+  }
   exit();
 }
 
